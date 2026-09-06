@@ -8,3 +8,6 @@ yarn-debug.log*
 yarn-error.log*
 .agents/logs
 coverage
+
+__pycache__/
+*.pyc
