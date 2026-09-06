@@ -25,7 +25,14 @@ El IDE integra la biblioteca `fastwebmcp` de Mauricio Perera para registrar herr
 ## 3. Fallback y Polyfill en Navegadores
 Si el navegador no cuenta con la bandera experimental de Chrome 149+ para `document.modelContext`, la aplicación utiliza `createWebMcpMock()` de `fastwebmcp` para inicializar el contexto en memoria, permitiendo que la interfaz del IDE y el agente interactivo funcionen con 100% de operatividad.
 
-## 4. Enlaces Relacionados
+## 4. Puente Publico de Ejecucion
+Para maxima interoperabilidad con agentes externos (Playwright, Puppeteer, Chrome DevTools MCP y extensiones), la aplicacion expone en `document.modelContext`, `window.modelContext` y `window.webmcp` los metodos:
+- `executeTool(name, args)`: Ejecuta una herramienta con validacion Zod, auditoria y disparo de eventos UI.
+- `getTools()` / `listTools()`: Lista todas las herramientas registradas y sus metadatos.
+- `hasTool(name)`: Verifica la disponibilidad de una herramienta.
+- `invoke(name, args)`: Alias ergonomico para invocacion directa desde agentes.
+
+## 5. Enlaces Relacionados
 - [Definición de Herramientas](../data_models/tool-definition.md)
 - [Contrato WebMCP](../contracts/webmcp-contract.md)
 - [Visión General](./overview.md)

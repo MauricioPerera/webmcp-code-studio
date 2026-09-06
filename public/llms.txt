@@ -16,7 +16,21 @@ WebMCP Code Studio allows AI agents (running in the browser, through browser aut
 
 ## WebMCP Tools Specification
 
-When an agent interacts with this page, the IDE registers the following tools via `fastwebmcp` onto `document.modelContext` (with an interactive fallback/mock in standard browsers).
+When an agent interacts with this page, the IDE exposes a complete WebMCP bridge compliant with W3C WebMCP on `document.modelContext`, `window.modelContext`, and helper `window.webmcp`:
+
+```javascript
+// Recommended Standard Invocation:
+const result = await document.modelContext.executeTool('tool_name', { ...args });
+
+// Global window alias:
+const result = await window.modelContext.executeTool('tool_name', { ...args });
+
+// Shortcut helper:
+const result = await window.webmcp.invoke('tool_name', { ...args });
+
+// Tool Discovery:
+const tools = document.modelContext.getTools();
+```
 
 ### 1. `ide_list_files`
 - **Description:** List all existing files in the virtual filesystem with metadata (path, size in bytes, last modified timestamp).

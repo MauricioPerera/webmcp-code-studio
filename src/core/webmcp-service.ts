@@ -20,19 +20,52 @@ export class WebMcpService {
     this.initEnvironment();
     this.registerCoreTools();
     this.listenToEvents();
+    this.exposePublicBridge();
   }
 
   private initEnvironment(): void {
     this.isNativeSupported = supportsWebMcp();
 
-    // If browser doesn't have document.modelContext natively, polyfill with createWebMcpMock
-    // so fastwebmcp can register and dispatch tools cleanly in-browser!
-    if (typeof window !== 'undefined' && typeof document !== 'undefined') {
-      if (!(document as any).modelContext) {
-        const mock = createWebMcpMock();
-        (document as any).modelContext = mock.document.modelContext;
-      }
+    // If browser/environment doesn't have document.modelContext natively, polyfill with createWebMcpMock
+    const globalObj: any = typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : {});
+    const docObj: any = typeof document !== 'undefined' ? document : (globalObj.document || null);
+
+    if (docObj && !docObj.modelContext) {
+      const mock = createWebMcpMock();
+      docObj.modelContext = mock.document.modelContext;
     }
+  }
+
+  public exposePublicBridge(): void {
+    const globalObj: any = typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : {});
+    const docObj: any = typeof document !== 'undefined' ? document : (globalObj.document || null);
+
+    const existingDocContext = docObj?.modelContext || {};
+    const existingWinContext = globalObj.modelContext || {};
+
+    const bridge = {
+      registerTool: existingDocContext.registerTool || existingWinContext.registerTool || (() => {}),
+      unregisterTool: (name: string) => {
+        this.registeredTools.delete(name);
+        eventBus.emit('webmcp:tools_updated', this.getRegisteredTools());
+      },
+      getTools: () => this.getRegisteredTools(),
+      listTools: () => this.getRegisteredTools(),
+      hasTool: (name: string) => this.registeredTools.has(name),
+      executeTool: async (name: string, args: Record<string, unknown> = {}) => {
+        return await this.executeTool(name, args);
+      },
+    };
+
+    if (docObj) {
+      docObj.modelContext = Object.assign(existingDocContext, bridge);
+    }
+    globalObj.modelContext = Object.assign(existingWinContext, bridge);
+    globalObj.webmcp = {
+      getTools: () => this.getRegisteredTools(),
+      executeTool: async (name: string, args: Record<string, unknown> = {}) => this.executeTool(name, args),
+      invoke: async (name: string, args: Record<string, unknown> = {}) => this.executeTool(name, args),
+    };
   }
 
   private listenToEvents(): void {
@@ -91,6 +124,7 @@ export class WebMcpService {
       schema: inputSchema,
     });
 
+    this.exposePublicBridge();
     eventBus.emit('webmcp:tools_updated', this.getRegisteredTools());
   }
 

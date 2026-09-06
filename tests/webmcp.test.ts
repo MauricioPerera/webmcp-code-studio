@@ -6,6 +6,13 @@ describe('WebMcpService & fastwebmcp tools', () => {
   let service: WebMcpService;
 
   beforeEach(() => {
+    const g = globalThis as any;
+    if (typeof g.window === 'undefined') {
+      g.window = g;
+    }
+    if (typeof g.document === 'undefined') {
+      g.document = {};
+    }
     // Clear and prepare VFS
     vfs.createFile('/index.html', '<h1>Hello WebMCP</h1>', true);
     vfs.createFile('/src/main.js', 'console.log("running");', true);
@@ -73,5 +80,25 @@ describe('WebMcpService & fastwebmcp tools', () => {
     expect(logs.length).toBeGreaterThan(0);
     expect(logs[0].toolName).toBe('ide_list_files');
     expect(logs[0].status).toBe('success');
+  });
+
+  it('exposes public bridge with executeTool on document.modelContext, window.modelContext, and window.webmcp', async () => {
+    const docContext = (globalThis as any).document.modelContext;
+    const winContext = (globalThis as any).window.modelContext;
+    const webmcpHelper = (globalThis as any).window.webmcp;
+
+    expect(typeof docContext.executeTool).toBe('function');
+    expect(typeof winContext.executeTool).toBe('function');
+    expect(typeof webmcpHelper.invoke).toBe('function');
+    expect(typeof docContext.getTools).toBe('function');
+
+    const listRes: any = await docContext.executeTool('ide_list_files', {});
+    expect(listRes.totalFiles).toBeGreaterThanOrEqual(2);
+
+    const winRes: any = await winContext.executeTool('ide_read_file', { path: '/index.html' });
+    expect(winRes.content).toBe('<h1>Hello WebMCP</h1>');
+
+    const invokeRes: any = await webmcpHelper.invoke('ide_get_workspace_summary', {});
+    expect(invokeRes.totalFiles).toBeGreaterThanOrEqual(2);
   });
 });

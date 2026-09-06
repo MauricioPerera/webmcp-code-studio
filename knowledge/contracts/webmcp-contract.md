@@ -11,7 +11,7 @@ test_command: 'npm test'
 budget:
   cyclomatic_max: 15
 tests: 'tests/webmcp.test.ts'
-tests_sha256: '9232b21ad675ff6de65163895fc27dbefb70d13c68e398f30bea6648c72c40ed'
+tests_sha256: '26eb2c8835dc2b127d35f940d4c93b077b3c4fbf8b86a69c16d63a1cc6d101d4'
 touch_only: ['src/core/webmcp-service.ts']
 deps_allowed: ['fastwebmcp', 'zod']
 forbids: ['eval', 'Function']
@@ -28,6 +28,7 @@ La clase `WebMcpService` ofrece:
 - `getExecutionLogs(): WebMcpExecutionLog[]`
 - `executeTool(toolName: string, args: Record<string, unknown>): Promise<unknown>`
 - `registerCustomTool(options: unknown): void`
+- `exposePublicBridge(): void`
 
 ## Invariants
 1. Toda herramienta expuesta debe tener un nombre válido según el estándar WebMCP.
