@@ -1,0 +1,106 @@
+# WebMCP Code Studio — LLM & Agent Guidance
+
+> A Visual Studio Code-style Web IDE built under Knowledge-Driven Development (KDD) and exposing native browser tools for AI agents via WebMCP (powered by `fastwebmcp`).
+
+## Overview for AI Agents
+
+WebMCP Code Studio allows AI agents (running in the browser, through browser automation, or via extensions/local models) to directly interact with a client-side development workspace. There is no remote backend: the editor, file system, live preview, and execution sandbox run 100% inside the user's browser.
+
+### Key Capabilities
+- **Virtual File System (VFS):** Full POSIX-style hierarchical virtual filesystem stored in browser `localStorage`.
+- **WebMCP Tool Voice:** Exposes native browser tools through W3C WebMCP / `fastwebmcp` specification (`document.modelContext`).
+- **Live Preview & Execution:** Isolated sandbox iframe with hot reloading and bidirectional console logging.
+- **KDD Compliance:** Built under Knowledge-Driven Development standards with Open Knowledge Format (OKF) nodes and Contract-Driven Development (CCDD) task contracts.
+
+---
+
+## WebMCP Tools Specification
+
+When an agent interacts with this page, the IDE registers the following tools via `fastwebmcp` onto `document.modelContext` (with an interactive fallback/mock in standard browsers).
+
+### 1. `ide_list_files`
+- **Description:** List all existing files in the virtual filesystem with metadata (path, size in bytes, last modified timestamp).
+- **Parameters:** None (`{}`)
+- **Annotations:** `readOnlyHint: true`
+- **Output:** `{ totalFiles: number, files: Array<{ path: string, sizeBytes: number, updatedAt: number }> }`
+- **Recommended Agent Use:** Call this first to map out the workspace before making edits.
+
+### 2. `ide_get_active_file`
+- **Description:** Get the path and full content of the file currently focused in the Monaco editor.
+- **Parameters:** None (`{}`)
+- **Annotations:** `readOnlyHint: true`
+- **Output:** `{ active: boolean, path?: string, content?: string, message?: string }`
+- **Recommended Agent Use:** Inspect the user's immediate context without asking what file they are looking at.
+
+### 3. `ide_read_file`
+- **Description:** Read the complete content of any file by its absolute path.
+- **Parameters:**
+  - `path` (string, required): Absolute normalized path (e.g., `"/index.html"`, `"/src/main.js"`).
+- **Annotations:** `readOnlyHint: true`
+- **Output:** `{ path: string, content: string }`
+
+### 4. `ide_write_file`
+- **Description:** Create or overwrite a file in the VFS with new content. Automatically triggers the Live Preview hot reload.
+- **Parameters:**
+  - `path` (string, required): Absolute normalized path (e.g., `"/src/utils.js"`).
+  - `content` (string, required): The complete code or text to write.
+- **Annotations:** `readOnlyHint: false`
+- **Output:** `{ success: boolean, path: string, bytesWritten: number }`
+- **Recommended Agent Use:** Provide complete, working code. Any directories in the path will be created automatically.
+
+### 5. `ide_delete_file`
+- **Description:** Delete a file or directory from the virtual filesystem. Directories are deleted recursively.
+- **Parameters:**
+  - `path` (string, required): Absolute path to delete (e.g., `"/temp.txt"`, `"/legacy-folder"`).
+- **Annotations:** `readOnlyHint: false`
+- **Output:** `{ success: boolean, deletedPath: string }`
+
+### 6. `ide_execute_code`
+- **Description:** Safely evaluate JavaScript code inside the browser's sandbox runner and retrieve captured `console.log` output and the return value. Supports top-level `async`/`await`.
+- **Parameters:**
+  - `code` (string, required): JavaScript snippet to execute.
+- **Annotations:** `readOnlyHint: false`
+- **Output:** `{ success: boolean, result?: any, logs: string[], durationMs: number, error?: string }`
+- **Recommended Agent Use:** Test functions, run quick algorithmic assertions, or verify that code behaves as expected.
+
+### 7. `ide_search_files`
+- **Description:** Search for text strings or regular expressions across all files in the workspace.
+- **Parameters:**
+  - `query` (string, required): Search term or regex pattern.
+  - `isRegex` (boolean, optional): If `true`, treats `query` as a regex. Default is `false`.
+- **Annotations:** `readOnlyHint: true`
+- **Output:** `{ totalMatches: number, matches: Array<{ file: string, line: number, text: string }> }`
+
+### 8. `ide_get_workspace_summary`
+- **Description:** Retrieve an overall summary of the workspace: total file count, total size, language distribution, and current active tab.
+- **Parameters:** None (`{}`)
+- **Annotations:** `readOnlyHint: true`
+- **Output:** `{ totalFiles: number, totalBytes: number, fileTypes: Record<string, number>, activeFile: string | null }`
+
+---
+
+## Agent Workflow Pattern
+
+When tasked with implementing a feature or fixing a bug in WebMCP Code Studio:
+
+1. **Discovery:**
+   - Call `ide_get_workspace_summary` to understand project scale.
+   - Call `ide_list_files` to locate relevant source files.
+   - Call `ide_get_active_file` to see what the user is currently editing.
+2. **Analysis:**
+   - Call `ide_read_file` on target files to inspect implementations.
+   - Use `ide_search_files` to find references, imports, or usages.
+3. **Execution:**
+   - Call `ide_write_file` to write complete, working implementations.
+   - If tests or verification are needed, call `ide_execute_code` to test functions in the sandbox.
+4. **Verification:**
+   - Ensure the live preview and sandbox logs reflect the desired behavior.
+
+---
+
+## KDD Methodology Principles
+
+This project adheres to **Knowledge-Driven Development**:
+- **OKF Nodes:** Documentation and specifications live under `/knowledge/` with strict YAML frontmatter (`type`, `title`, `description`, `tags`).
+- **CCDD Task Contracts:** Feature tasks live under `/knowledge/contracts/` with frozen test oracles (`tests_sha256`) and strict boundary limits (`touch_only`).
+- **Deterministic Gates:** Before committing changes, contracts must pass `python scripts/validate_contracts.py knowledge/contracts` and `python scripts/validate_okf.py knowledge`.
