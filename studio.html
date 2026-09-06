@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebMCP Code Studio | IDE Web</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23007acc' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='16 18 22 12 16 6'%3E%3C/polyline%3E%3Cpolyline points='8 6 2 12 8 18'%3E%3C/polyline%3E%3C/svg%3E">
+  <link rel="stylesheet" href="./src/style.css">
+</head>
+<body>
+  <div id="app" class="vscode-app">
+    <!-- Top Titlebar / Command Bar -->
+    <header class="vscode-titlebar" id="titlebar">
+      <div class="titlebar-left">
+        <span class="product-badge">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#007acc" stroke-width="2">
+            <polyline points="16 18 22 12 16 6"></polyline>
+            <polyline points="8 6 2 12 8 18"></polyline>
+          </svg>
+          WebMCP Studio
+        </span>
+        <nav class="window-menu">
+          <button class="menu-item" id="menu-file">Archivo</button>
+          <button class="menu-item" id="menu-edit">Editar</button>
+          <button class="menu-item" id="menu-view">Ver</button>
+          <button class="menu-item" id="menu-run">Ejecutar</button>
+          <button class="menu-item" id="menu-help">Ayuda (KDD)</button>
+          <a href="./index.html" class="menu-item highlight-guide-btn" style="color: #38bdf8; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;" title="Ver Guía y Ventajas de la Plataforma">💡 Conoce la Suite</a>
+        </nav>
+      </div>
+
+      <div class="titlebar-center">
+        <div class="quick-open-btn" id="quick-open" title="Buscar archivos (Ctrl+P)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <span id="quick-open-title">WebMCP Code Studio — Espacio de Trabajo</span>
+        </div>
+      </div>
+
+      <div class="titlebar-right">
+        <div class="webmcp-header-status" id="header-webmcp-status" title="Estado de WebMCP en el navegador">
+          <span class="status-dot warning" id="header-status-dot"></span>
+          <span class="status-text" id="header-status-text">WebMCP</span>
+        </div>
+        <button class="titlebar-action" id="btn-theme-toggle" title="Cambiar Tema (Oscuro / Claro)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </button>
+        <button class="titlebar-action" id="btn-export-zip" title="Descargar Proyecto (.ZIP)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Workbench Area -->
+    <div class="vscode-workbench">
+      <!-- Activity Bar (Far Left) -->
+      <aside class="vscode-activitybar">
+        <div class="activitybar-top">
+          <button class="activity-btn active" id="act-explorer" data-panel="explorer" title="Explorador (Ctrl+Shift+E)">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+              <polyline points="13 2 13 9 20 9"></polyline>
+            </svg>
+          </button>
+          <button class="activity-btn" id="act-search" data-panel="search" title="Buscar (Ctrl+Shift+F)">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </button>
+          <button class="activity-btn" id="act-git" data-panel="git" title="Control de Código Fuente (Ctrl+Shift+G)">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <line x1="6" y1="3" x2="6" y2="15"></line>
+              <circle cx="18" cy="6" r="3"></circle>
+              <circle cx="6" cy="18" r="3"></circle>
+              <path d="M18 9a9 9 0 0 1-9 9"></path>
+            </svg>
+            <span class="activity-badge" id="git-badge" style="display: none;">0</span>
+          </button>
+          <button class="activity-btn" id="act-webmcp" data-panel="webmcp" title="WebMCP Inspector & Agente">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+              <line x1="8" y1="21" x2="16" y2="21"></line>
+              <line x1="12" y1="17" x2="12" y2="21"></line>
+            </svg>
+            <span class="activity-badge" id="webmcp-tool-count-badge">0</span>
+          </button>
+          <button class="activity-btn" id="act-kdd" data-panel="kdd" title="Metodología KDD & Contratos">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            </svg>
+          </button>
+        </div>
+        <div class="activitybar-bottom">
+          <button class="activity-btn" id="act-settings" data-panel="settings" title="Configuración">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+          </button>
+        </div>
+      </aside>
+
+      <!-- Sidebar -->
+      <section class="vscode-sidebar" id="sidebar">
+        <!-- Explorer View -->
+        <div class="sidebar-panel active" id="panel-explorer">
+          <div class="sidebar-header">
+            <span class="sidebar-title">EXPLORADOR</span>
+            <div class="sidebar-actions">
+              <button class="icon-btn" id="btn-new-file" title="Nuevo Archivo">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="12" y1="18" x2="12" y2="12"></line>
+                  <line x1="9" y1="15" x2="15" y2="15"></line>
+                </svg>
+              </button>
+              <button class="icon-btn" id="btn-new-folder" title="Nueva Carpeta">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                  <line x1="12" y1="11" x2="12" y2="17"></line>
+                  <line x1="9" y1="14" x2="15" y2="14"></line>
+                </svg>
+              </button>
+              <button class="icon-btn" id="btn-refresh-files" title="Refrescar Explorador">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="23 4 23 10 17 10"></polyline>
+                  <polyline points="1 20 1 14 7 14"></polyline>
+                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                </svg>
+              </button>
+              <button class="icon-btn" id="btn-import-folder" title="Abrir Carpeta Local / Importar Archivos">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <!-- Template selector bar -->
+          <div class="template-selector-bar">
+            <span class="template-label">Plantilla:</span>
+            <select id="template-select" class="vscode-select">
+              <option value="webmcp-demo">WebMCP + FastWebMCP Demo</option>
+              <option value="canvas-game">HTML5 Canvas Playground</option>
+              <option value="kdd-knowledge">KDD Knowledge Base</option>
+            </select>
+          </div>
+          <!-- Tree container -->
+          <div class="file-tree-container" id="file-tree"></div>
+        </div>
+
+        <!-- Search View -->
+        <div class="sidebar-panel" id="panel-search">
+          <div class="sidebar-header">
+            <span class="sidebar-title">BUSCAR EN ARCHIVOS</span>
+          </div>
+          <div class="search-panel-content">
+            <div class="search-input-wrapper">
+              <input type="text" id="search-input" class="vscode-input" placeholder="Buscar texto o regex...">
+            </div>
+            <div class="search-results" id="search-results">
+              <div class="empty-state">Escribe un término para buscar en todos los archivos.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Git Source Control Panel -->
+        <div class="sidebar-panel" id="panel-git">
+          <!-- Rendered dynamically by git-view.ts -->
+        </div>
+
+        <!-- WebMCP Panel -->
+        <div class="sidebar-panel" id="panel-webmcp">
+          <div class="sidebar-header">
+            <span class="sidebar-title">WEBMCP & FASTWEBMCP</span>
+          </div>
+          <div class="webmcp-panel-content" id="webmcp-panel-body">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
+
+        <!-- KDD Panel -->
+        <div class="sidebar-panel" id="panel-kdd">
+          <div class="sidebar-header">
+            <span class="sidebar-title">METODOLOGÍA KDD</span>
+          </div>
+          <div class="kdd-panel-content" id="kdd-panel-body">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
+
+        <!-- Settings Panel -->
+        <div class="sidebar-panel" id="panel-settings">
+          <div class="sidebar-header">
+            <span class="sidebar-title">CONFIGURACIÓN</span>
+          </div>
+          <div class="settings-panel-content" id="settings-panel-body">
+            <!-- Settings options -->
+          </div>
+        </div>
+      </section>
+
+      <!-- Resizer / Splitter between Sidebar and Main Content -->
+      <div class="vscode-resizer vertical" id="sidebar-resizer"></div>
+
+      <!-- Main Editor and Panels -->
+      <main class="vscode-main">
+        <!-- Editor Section -->
+        <div class="vscode-editor-section" id="editor-section">
+          <!-- Tab Bar -->
+          <div class="vscode-tabs-bar" id="tabs-bar">
+            <div class="tabs-container" id="tabs-container"></div>
+            <div class="tabs-actions">
+              <button class="icon-btn" id="btn-run-preview" title="Ejecutar Vista Previa (F5)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="#4ec9b0" stroke="#4ec9b0" stroke-width="2">
+                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+              </button>
+              <button class="icon-btn" id="btn-toggle-panel" title="Alternar Panel Inferior (Ctrl+`)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="3" y1="15" x2="21" y2="15"></line>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Breadcrumbs bar -->
+          <div class="vscode-breadcrumbs" id="breadcrumbs">
+            <span class="breadcrumb-item" id="active-file-breadcrumb">Ningún archivo abierto</span>
+          </div>
+
+          <!-- Monaco Editor Mount Point -->
+          <div class="monaco-container" id="monaco-mount">
+            <div class="editor-welcome" id="editor-welcome">
+              <div class="welcome-content">
+                <h2>WebMCP Code Studio</h2>
+                <p>IDE Web impulsado por <strong>KDD</strong> y <strong>fastwebmcp</strong></p>
+                <div class="welcome-shortcuts">
+                  <div class="shortcut-row"><span>Nuevo archivo</span><kbd>Alt+N</kbd></div>
+                  <div class="shortcut-row"><span>Guardar archivo</span><kbd>Ctrl+S</kbd></div>
+                  <div class="shortcut-row"><span>Ejecutar Vista Previa</span><kbd>F5</kbd></div>
+                  <div class="shortcut-row"><span>Alternar Terminal</span><kbd>Ctrl+`</kbd></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Monaco Diff Editor Mount Point -->
+          <div class="monaco-container" id="monaco-diff-mount" style="display: none;"></div>
+        </div>
+
+        <!-- Horizontal Resizer between Editor and Bottom Panel -->
+        <div class="vscode-resizer horizontal" id="panel-resizer"></div>
+
+        <!-- Bottom Panel (Tabs: Live Preview, Console / Terminal, WebMCP Log) -->
+        <section class="vscode-bottom-panel" id="bottom-panel">
+          <div class="panel-tabs-bar">
+            <div class="panel-tabs">
+              <button class="panel-tab active" data-tab="preview" id="tab-preview">VISTA PREVIA</button>
+              <button class="panel-tab" data-tab="terminal" id="tab-terminal">TERMINAL / CONSOLA</button>
+              <button class="panel-tab" data-tab="webmcp-logs" id="tab-webmcp-logs">LOGS WEBMCP</button>
+            </div>
+            <div class="panel-actions">
+              <button class="icon-btn" id="btn-refresh-preview" title="Recargar vista previa">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M23 4v6h-6M1 20v-6h6"></path>
+                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                </svg>
+              </button>
+              <button class="icon-btn" id="btn-clear-terminal" title="Limpiar consola">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
+                </svg>
+              </button>
+              <button class="icon-btn" id="btn-close-bottom-panel" title="Cerrar panel">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Bottom Panel Contents -->
+          <div class="panel-content-area">
+            <!-- Tab: Live Preview Iframe -->
+            <div class="panel-view active" id="view-preview">
+              <iframe id="sandbox-iframe" class="preview-iframe" sandbox="allow-scripts allow-modals allow-same-origin"></iframe>
+            </div>
+
+            <!-- Tab: Console / Terminal -->
+            <div class="panel-view" id="view-terminal">
+              <div class="terminal-logs" id="terminal-output"></div>
+              <div class="terminal-input-row">
+                <span class="prompt-arrow" id="terminal-prompt"><span style="color:#38bdf8">dev@webmcp</span>:<span style="color:#fbbf24">/</span> (<span style="color:#10b981">main</span>)$</span>
+                <input type="text" id="terminal-input" class="terminal-input" placeholder="Comandos POSIX, Git o JS (ej: ls -la, git status, help)...">
+              </div>
+            </div>
+
+            <!-- Tab: WebMCP Logs -->
+            <div class="panel-view" id="view-webmcp-logs">
+              <div class="webmcp-audit-logs" id="webmcp-audit-output">
+                <div class="log-entry system">[WebMCP] Servicio inicializado con fastwebmcp v0.4.2</div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- Status Bar (Bottom) -->
+    <footer class="vscode-statusbar" id="statusbar">
+      <div class="statusbar-left">
+        <div class="status-item" id="status-branch" title="Rama Git">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="6" y1="3" x2="6" y2="15"></line>
+            <circle cx="18" cy="6" r="3"></circle>
+            <circle cx="6" cy="18" r="3"></circle>
+            <path d="M18 9a9 9 0 0 1-9 9"></path>
+          </svg>
+          <span id="status-branch-name">main</span>
+        </div>
+        <div class="status-item" id="status-sync" title="Sincronización Remota (GitHub / Codeberg)">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
+          </svg>
+          <span id="status-sync-label">Remoto</span>
+        </div>
+        <div class="status-item" id="status-vfs" title="Almacenamiento Virtual VFS">
+          <span>VFS: LocalStorage</span>
+        </div>
+      </div>
+
+      <div class="statusbar-right">
+        <div class="status-item" id="status-cursor">Ln 1, Col 1</div>
+        <div class="status-item" id="status-spaces">Espacios: 2</div>
+        <div class="status-item" id="status-encoding">UTF-8</div>
+        <div class="status-item" id="status-language">TypeScript</div>
+        <div class="status-item highlight" id="status-webmcp-badge" title="WebMCP Tool Voice">
+          <span class="badge-icon">⚡</span>
+          <span id="status-webmcp-label">fastwebmcp</span>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <script type="module" src="./src/main.ts"></script>
+</body>
+</html>
