@@ -1,4 +1,5 @@
 import { editorManager } from './editor';
+import { explorerView } from './explorer';
 import { vfs } from '../core/vfs';
 
 export class LayoutManager {
@@ -185,8 +186,14 @@ export class LayoutManager {
         { label: 'Nuevo Archivo', shortcut: 'Alt+N', action: () => document.getElementById('btn-new-file')?.click() },
         { label: 'Nueva Carpeta', action: () => document.getElementById('btn-new-folder')?.click() },
         { divider: true, label: '', action: () => {} },
+        { label: 'Abrir Carpeta Local (FS Access API)...', action: () => explorerView.openLocalFolder() },
+        { label: 'Importar Archivos Locales...', action: () => explorerView.importFiles() },
+        { label: 'Importar Proyecto (.ZIP)...', action: () => explorerView.importZip() },
+        { divider: true, label: '', action: () => {} },
         { label: 'Guardar Archivo', shortcut: 'Ctrl+S', action: () => editorManager.saveActiveFile() },
         { label: 'Descargar Proyecto (.ZIP)', action: () => document.getElementById('btn-export-zip')?.click() },
+        { label: 'Exportar Snapshot (JSON)', action: () => explorerView.exportSnapshotJson() },
+        { label: 'Importar Snapshot (JSON)...', action: () => explorerView.importSnapshotJson() },
         { divider: true, label: '', action: () => {} },
         {
           label: 'Restablecer Espacio de Trabajo',

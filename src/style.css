@@ -1136,3 +1136,10 @@ kbd {
   background-color: var(--vscode-border);
   margin: 4px 0;
 }
+
+#file-tree.drag-over {
+  outline: 2px dashed var(--vscode-accent);
+  outline-offset: -4px;
+  background: rgba(0, 122, 204, 0.12);
+}
+
