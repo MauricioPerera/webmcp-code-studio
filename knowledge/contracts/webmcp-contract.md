@@ -11,7 +11,7 @@ test_command: 'npm test'
 budget:
   cyclomatic_max: 15
 tests: 'tests/webmcp.test.ts'
-tests_sha256: '26eb2c8835dc2b127d35f940d4c93b077b3c4fbf8b86a69c16d63a1cc6d101d4'
+tests_sha256: '110484c642540456dbf17a5bb6ba9e6f6a939b31efbe11d636c611f0a7a0473e'
 touch_only: ['src/core/webmcp-service.ts']
 deps_allowed: ['fastwebmcp', 'zod']
 forbids: ['eval', 'Function']

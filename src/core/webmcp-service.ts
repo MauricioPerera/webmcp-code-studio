@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { registerTool, supportsWebMcp, createWebMcpMock } from 'fastwebmcp';
 import { vfs } from './vfs';
+import { gitVcs } from './git-vcs';
 import { sandboxManager } from './sandbox';
 import { eventBus } from './event-bus';
 import { WebMcpToolMetadata, WebMcpExecutionLog } from './types';
@@ -351,6 +352,72 @@ export class WebMcpService {
           fileTypes: extensions,
           activeFile: this.activeFilePath,
           timestamp: Date.now(),
+        };
+      },
+    });
+
+    // 9. git_status
+    this.registerCustomTool({
+      name: 'git_status',
+      description: 'Consulta el estado del repositorio Git: rama actual, archivos preparados (staged) y no preparados (unstaged) con estado M/A/D.',
+      inputSchema: z.object({}),
+      parametersList: [],
+      readOnlyHint: true,
+      execute: async () => {
+        return gitVcs.getStatus();
+      },
+    });
+
+    // 10. git_commit
+    this.registerCustomTool({
+      name: 'git_commit',
+      description: 'Crea un commit atómico en la rama actual con los cambios preparados (o todos los cambios pendientes si no hay staged).',
+      inputSchema: z.object({
+        message: z.string().min(1, 'El mensaje del commit es requerido.'),
+        author: z.string().optional(),
+      }),
+      parametersList: [
+        { name: 'message', type: 'string', description: 'Mensaje descriptivo del commit.', required: true },
+        { name: 'author', type: 'string', description: 'Nombre y correo del autor (opcional).', required: false },
+      ],
+      readOnlyHint: false,
+      execute: async ({ message, author }) => {
+        const commit = gitVcs.commit(message, author);
+        return {
+          success: true,
+          hash: commit.hash,
+          message: commit.message,
+          author: commit.author,
+          timestamp: commit.timestamp,
+          branch: commit.branch,
+        };
+      },
+    });
+
+    // 11. git_log
+    this.registerCustomTool({
+      name: 'git_log',
+      description: 'Obtiene el historial de commits recientes en la rama activa ordenados cronológicamente inverso.',
+      inputSchema: z.object({
+        limit: z.number().int().positive().optional().default(10),
+      }),
+      parametersList: [
+        { name: 'limit', type: 'number', description: 'Cantidad máxima de commits a retornar (por defecto 10).', required: false },
+      ],
+      readOnlyHint: true,
+      execute: async ({ limit }) => {
+        const commits = gitVcs.getLog(limit);
+        return {
+          branch: gitVcs.getCurrentBranch(),
+          total: commits.length,
+          commits: commits.map((c) => ({
+            hash: c.hash,
+            parentHash: c.parentHash,
+            message: c.message,
+            author: c.author,
+            timestamp: c.timestamp,
+            branch: c.branch,
+          })),
         };
       },
     });

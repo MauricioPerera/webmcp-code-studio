@@ -19,7 +19,7 @@ describe('WebMcpService & fastwebmcp tools', () => {
     service = new WebMcpService();
   });
 
-  it('registers all 8 core IDE tools', () => {
+  it('registers all 11 core IDE & Git tools', () => {
     const tools = service.getRegisteredTools();
     const toolNames = tools.map((t) => t.name);
 
@@ -31,6 +31,9 @@ describe('WebMcpService & fastwebmcp tools', () => {
     expect(toolNames).toContain('ide_execute_code');
     expect(toolNames).toContain('ide_search_files');
     expect(toolNames).toContain('ide_get_workspace_summary');
+    expect(toolNames).toContain('git_status');
+    expect(toolNames).toContain('git_commit');
+    expect(toolNames).toContain('git_log');
   });
 
   it('executes ide_list_files tool successfully', async () => {
@@ -100,5 +103,24 @@ describe('WebMcpService & fastwebmcp tools', () => {
 
     const invokeRes: any = await webmcpHelper.invoke('ide_get_workspace_summary', {});
     expect(invokeRes.totalFiles).toBeGreaterThanOrEqual(2);
+  });
+
+  it('executes git tools via WebMCP (git_status, git_commit, git_log)', async () => {
+    const statusRes: any = await service.executeTool('git_status', {});
+    expect(statusRes).toBeDefined();
+    expect(statusRes.branch).toBe('main');
+
+    // Modify a file to have changes to commit
+    vfs.writeFile('/index.html', '<h1>Updated for Git WebMCP test</h1>');
+    const commitRes: any = await service.executeTool('git_commit', {
+      message: 'test: commit via WebMCP tool',
+      author: 'Agent <agent@webmcp.ai>',
+    });
+    expect(commitRes.success).toBe(true);
+    expect(commitRes.hash).toHaveLength(40);
+
+    const logRes: any = await service.executeTool('git_log', { limit: 5 });
+    expect(logRes.commits.length).toBeGreaterThanOrEqual(1);
+    expect(logRes.commits[0].message).toBe('test: commit via WebMCP tool');
   });
 });

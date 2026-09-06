@@ -6,6 +6,8 @@ import { layoutManager } from './ui/layout';
 import { webMcpPanelView } from './ui/webmcp-panel';
 import { terminalPanelView } from './ui/terminal-panel';
 import { previewPanelView } from './ui/preview-panel';
+import { gitVcs } from './core/git-vcs';
+import { gitView } from './ui/git-view';
 import { statusBarView } from './ui/status-bar';
 
 async function bootstrap() {
@@ -18,9 +20,13 @@ async function bootstrap() {
     vfs.loadProjectTemplate(starterTemplates['webmcp-demo'].files);
   }
 
-  // 2. Initialize Layout & UI views
+  // 2. Initialize Git VCS
+  gitVcs.init();
+
+  // 3. Initialize Layout & UI views
   layoutManager.init();
   explorerView.init();
+  gitView.init();
   webMcpPanelView.init();
   terminalPanelView.init();
   previewPanelView.init();

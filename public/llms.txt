@@ -91,6 +91,27 @@ const tools = document.modelContext.getTools();
 - **Annotations:** `readOnlyHint: true`
 - **Output:** `{ totalFiles: number, totalBytes: number, fileTypes: Record<string, number>, activeFile: string | null }`
 
+### 9. `git_status`
+- **Description:** Query the local Git repository status: active branch, staged files, unstaged modifications, additions, and deletions.
+- **Parameters:** None (`{}`)
+- **Annotations:** `readOnlyHint: true`
+- **Output:** `{ branch: string, staged: Array<{ path: string, status: 'M'|'A'|'D', staged: boolean }>, unstaged: Array<{ path: string, status: 'M'|'A'|'D', staged: boolean }>, totalChanges: number }`
+
+### 10. `git_commit`
+- **Description:** Create an atomic commit on the active branch capturing the current state of staged changes (or all changes if none are staged).
+- **Parameters:**
+  - `message` (string, required): Descriptive commit message.
+  - `author` (string, optional): Author identity (e.g. `"Agent <agent@webmcp.ai>"`).
+- **Annotations:** `readOnlyHint: false`
+- **Output:** `{ success: boolean, hash: string, message: string, author: string, timestamp: number, branch: string }`
+
+### 11. `git_log`
+- **Description:** Retrieve recent commits on the active branch in reverse chronological order with hashes, authors, and timestamps.
+- **Parameters:**
+  - `limit` (number, optional, default: 10): Maximum number of commits to retrieve.
+- **Annotations:** `readOnlyHint: true`
+- **Output:** `{ branch: string, total: number, commits: Array<{ hash: string, message: string, author: string, timestamp: number, branch: string }> }`
+
 ---
 
 ## Agent Workflow Pattern

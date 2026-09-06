@@ -1,12 +1,15 @@
 import { eventBus } from '../core/event-bus';
 import { vfs } from '../core/vfs';
 import { webMcpService } from '../core/webmcp-service';
+import { gitVcs } from '../core/git-vcs';
+import { gitView } from './git-view';
 
 export class StatusBarView {
   private cursorEl: HTMLElement | null = null;
   private langEl: HTMLElement | null = null;
   private vfsEl: HTMLElement | null = null;
   private webmcpBadge: HTMLElement | null = null;
+  private branchEl: HTMLElement | null = null;
 
   constructor() {
     this.setupListeners();
@@ -17,14 +20,20 @@ export class StatusBarView {
     this.langEl = document.getElementById('status-language');
     this.vfsEl = document.getElementById('status-vfs');
     this.webmcpBadge = document.getElementById('status-webmcp-badge');
+    this.branchEl = document.getElementById('status-branch');
 
     this.updateVfsStatus();
     this.updateWebmcpStatus();
+    this.updateGitStatus();
 
     this.webmcpBadge?.addEventListener('click', () => {
       // Switch activity bar to WebMCP
       const btn = document.getElementById('act-webmcp');
       btn?.click();
+    });
+
+    this.branchEl?.addEventListener('click', () => {
+      gitView.promptSwitchBranch();
     });
   }
 
@@ -45,6 +54,19 @@ export class StatusBarView {
 
     eventBus.on('vfs:change', () => this.updateVfsStatus());
     eventBus.on('webmcp:tools_updated', () => this.updateWebmcpStatus());
+    eventBus.on('git:branch_changed', () => this.updateGitStatus());
+    eventBus.on('git:commit', () => this.updateGitStatus());
+  }
+
+  private updateGitStatus(): void {
+    if (!this.branchEl) return;
+    const branch = gitVcs.getCurrentBranch();
+    const branchLabel = document.getElementById('status-branch-name');
+    if (branchLabel) {
+      branchLabel.textContent = branch;
+    } else {
+      this.branchEl.textContent = branch;
+    }
   }
 
   private updateVfsStatus(): void {

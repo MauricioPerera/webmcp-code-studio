@@ -75,6 +75,15 @@
               <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>
           </button>
+          <button class="activity-btn" id="act-git" data-panel="git" title="Control de Código Fuente (Ctrl+Shift+G)">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <line x1="6" y1="3" x2="6" y2="15"></line>
+              <circle cx="18" cy="6" r="3"></circle>
+              <circle cx="6" cy="18" r="3"></circle>
+              <path d="M18 9a9 9 0 0 1-9 9"></path>
+            </svg>
+            <span class="activity-badge" id="git-badge" style="display: none;">0</span>
+          </button>
           <button class="activity-btn" id="act-webmcp" data-panel="webmcp" title="WebMCP Inspector & Agente">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
               <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
@@ -164,6 +173,11 @@
               <div class="empty-state">Escribe un término para buscar en todos los archivos.</div>
             </div>
           </div>
+        </div>
+
+        <!-- Git Source Control Panel -->
+        <div class="sidebar-panel" id="panel-git">
+          <!-- Rendered dynamically by git-view.ts -->
         </div>
 
         <!-- WebMCP Panel -->

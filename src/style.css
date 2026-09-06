@@ -1143,3 +1143,251 @@ kbd {
   background: rgba(0, 122, 204, 0.12);
 }
 
+/* Git Source Control Styles */
+.git-view-body {
+  display: flex;
+  flex-direction: column;
+  height: calc(100% - 35px);
+  overflow: hidden;
+}
+
+.git-branch-bar {
+  padding: 6px 14px;
+  background-color: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--vscode-border);
+}
+
+.git-branch-info {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--vscode-fg);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.git-branch-info:hover {
+  background-color: var(--vscode-item-hover);
+  color: var(--vscode-accent);
+}
+
+.git-commit-box {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--vscode-border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.git-commit-textarea {
+  width: 100%;
+  background-color: var(--vscode-input-bg);
+  color: var(--vscode-fg);
+  border: 1px solid var(--vscode-border);
+  border-radius: 3px;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-family: inherit;
+  resize: none;
+  outline: none;
+}
+
+.git-commit-textarea:focus {
+  border-color: var(--vscode-accent);
+}
+
+.git-commit-btn {
+  width: 100%;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px;
+}
+
+.git-changes-scrollable {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.git-section {
+  border-bottom: 1px solid var(--vscode-border);
+}
+
+.git-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 14px;
+  background-color: rgba(255, 255, 255, 0.015);
+}
+
+.git-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--vscode-fg-muted);
+}
+
+.git-section-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.icon-btn-micro {
+  background: none;
+  border: none;
+  color: var(--vscode-fg-muted);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 3px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-btn-micro:hover {
+  background-color: var(--vscode-item-hover);
+  color: var(--vscode-fg);
+}
+
+.git-file-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.git-file-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 14px;
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.git-file-item:hover {
+  background-color: var(--vscode-item-hover);
+}
+
+.git-file-left {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.git-file-name {
+  font-weight: 500;
+  color: var(--vscode-fg);
+}
+
+.git-file-dir {
+  font-size: 10.5px;
+  color: var(--vscode-fg-muted);
+}
+
+.git-file-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.git-status-badge {
+  font-size: 10px;
+  font-weight: bold;
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
+.status-m {
+  color: #e2b93d;
+}
+
+.status-a {
+  color: #73c991;
+}
+
+.status-d {
+  color: #e06c75;
+}
+
+.git-item-actions {
+  display: none;
+  gap: 2px;
+}
+
+.git-file-item:hover .git-item-actions {
+  display: flex;
+}
+
+.git-history-section {
+  flex: 1;
+}
+
+.git-history-list {
+  padding: 6px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.git-history-item {
+  padding: 6px 8px;
+  background-color: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--vscode-border);
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.git-history-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.git-history-hash {
+  font-family: monospace;
+  font-size: 10.5px;
+  color: var(--vscode-accent);
+  font-weight: bold;
+}
+
+.git-history-time {
+  font-size: 10px;
+  color: var(--vscode-fg-muted);
+}
+
+.git-history-msg {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--vscode-fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.git-history-author {
+  font-size: 10px;
+  color: var(--vscode-fg-muted);
+}
+
+.git-empty-state {
+  padding: 12px 14px;
+  font-size: 12px;
+  color: var(--vscode-fg-muted);
+  font-style: italic;
+}
+
+

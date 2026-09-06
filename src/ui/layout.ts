@@ -161,6 +161,10 @@ export class LayoutManager {
         e.preventDefault();
         this.showQuickOpenDialog();
       }
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'g') {
+        e.preventDefault();
+        document.getElementById('act-git')?.click();
+      }
     });
   }
 
@@ -214,6 +218,7 @@ export class LayoutManager {
       'menu-view': [
         { label: 'Explorador', shortcut: 'Ctrl+Shift+E', action: () => document.getElementById('act-explorer')?.click() },
         { label: 'Buscar', shortcut: 'Ctrl+Shift+F', action: () => document.getElementById('act-search')?.click() },
+        { label: 'Control de Código Fuente (Git)', shortcut: 'Ctrl+Shift+G', action: () => document.getElementById('act-git')?.click() },
         { label: 'Inspector WebMCP', action: () => document.getElementById('act-webmcp')?.click() },
         { label: 'Metodología KDD', action: () => document.getElementById('act-kdd')?.click() },
         { divider: true, label: '', action: () => {} },

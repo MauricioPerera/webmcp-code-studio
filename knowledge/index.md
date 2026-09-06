@@ -10,11 +10,13 @@ Bienvenido al índice central de la base de conocimiento de **WebMCP Code Studio
 ## 2. Modelos de Datos
 - [Modelo de Nodo VFS](./data_models/vfs-node.md)
 - [Definición de Herramienta WebMCP](./data_models/tool-definition.md)
+- [Modelo de Datos Git VCS](./data_models/git-model.md)
 
 ## 3. Contratos de Tarea (CCDD Híbridos)
 - [Contrato del Virtual File System](./contracts/vfs-contract.md)
 - [Contrato del Servicio WebMCP](./contracts/webmcp-contract.md)
 - [Contrato de Sandbox y Live Preview](./contracts/sandbox-contract.md)
+- [Contrato de Control de Versiones Git](./contracts/git-contract.md)
 
 ## 4. Guías y Metodología
 - [Guía y Niveles de Validación KDD](./validacion.md)
