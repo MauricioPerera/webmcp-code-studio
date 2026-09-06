@@ -128,6 +128,33 @@ const tools = document.modelContext.getTools();
 - **Annotations:** `readOnlyHint: false`
 - **Output:** `{ currentBranch: string, branches: string[], success?: boolean, action?: string }`
 
+### 14. `git_remote_config`
+- **Description:** Query, configure, or clear remote Git repository credentials and settings (GitHub or Codeberg/Forgejo) using Personal Access Tokens (PAT).
+- **Parameters:**
+  - `action` (string, optional, default: `'get'`): One of `'get'`, `'set'`, or `'clear'`.
+  - `provider` (string, optional): `'github'` or `'codeberg'`.
+  - `repo` (string, optional): Target repository in `'owner/repo'` format.
+  - `branch` (string, optional, default: `'main'`): Remote tracking branch.
+  - `token` (string, optional): Personal Access Token with repository write permissions.
+  - `customBaseUrl` (string, optional): Custom API endpoint for self-hosted Gitea/Forgejo instances.
+- **Annotations:** `readOnlyHint: false`
+- **Output:** `{ configured?: boolean, success?: boolean, config: { provider: string, repo: string, branch: string, hasToken: boolean } | null, message?: string }`
+
+### 15. `git_remote_push`
+- **Description:** Publish and push local VFS snapshot / commits directly to GitHub (using Git Database REST API) or Codeberg (using Contents API) without any server-side dependencies.
+- **Parameters:**
+  - `message` (string, optional): Descriptive commit message for the remote repository.
+  - `branch` (string, optional): Remote target branch.
+- **Annotations:** `readOnlyHint: false`
+- **Output:** `{ success: boolean, commitSha?: string, filesPushed: number, message: string }`
+
+### 16. `git_remote_pull`
+- **Description:** Fetch and merge files from the remote GitHub or Codeberg repository directly into the local browser Virtual File System (VFS).
+- **Parameters:**
+  - `branch` (string, optional): Remote branch to pull from.
+- **Annotations:** `readOnlyHint: false`
+- **Output:** `{ success: boolean, filesUpdated: number, message: string }`
+
 ---
 
 ## Agent Workflow Pattern

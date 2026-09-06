@@ -35,6 +35,10 @@ export class StatusBarView {
     this.branchEl?.addEventListener('click', () => {
       gitView.promptSwitchBranch();
     });
+
+    document.getElementById('status-sync')?.addEventListener('click', () => {
+      document.getElementById('act-git')?.click();
+    });
   }
 
   private setupListeners(): void {

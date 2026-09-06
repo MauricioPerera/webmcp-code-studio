@@ -1,9 +1,10 @@
 import { gitVcs, GitStatusResult, GitCommit } from '../core/git-vcs';
-import { eventBus } from '../core/event-bus';
+import { remoteSync, RemoteConfig } from '../core/remote-sync';
 import { editorManager } from './editor';
+import { eventBus } from '../core/event-bus';
 
 export class GitView {
-  private panelContainer: HTMLElement | null = null;
+  private container: HTMLElement | null = null;
   private badgeEl: HTMLElement | null = null;
   private commitMsgInput: HTMLTextAreaElement | null = null;
   private commitBtn: HTMLButtonElement | null = null;
@@ -17,33 +18,44 @@ export class GitView {
   }
 
   public init(): void {
-    this.panelContainer = document.getElementById('panel-git');
+    this.container = document.getElementById('panel-git');
     this.badgeEl = document.getElementById('git-badge');
 
-    if (!this.panelContainer) return;
+    if (!this.container) return;
 
-    this.renderSkeleton();
+    this.renderInitialHtml();
     this.bindEvents();
     this.updateView(gitVcs.getStatus());
+    this.updateRemoteView();
   }
 
   private setupListeners(): void {
     eventBus.on<GitStatusResult>('git:status_changed', (status) => {
       this.updateView(status);
     });
-    eventBus.on('git:commit', () => {
-      this.renderHistory();
+
+    eventBus.on<GitCommit>('git:commit', () => {
+      this.updateView(gitVcs.getStatus());
     });
-    eventBus.on<string>('git:branch_changed', (branch) => {
-      if (this.branchLabel) this.branchLabel.textContent = branch;
+
+    eventBus.on('remote:config_updated', () => {
+      this.updateRemoteView();
+    });
+
+    eventBus.on('remote:push_completed', (res: any) => {
+      this.showRemoteMessage(`✓ Push exitoso: ${res.repo}@${res.branch}`, 'success', res.url);
+    });
+
+    eventBus.on('remote:pull_completed', (res: any) => {
+      this.showRemoteMessage(`✓ Pull exitoso: ${res.filesUpdated} archivos`, 'success');
       this.updateView(gitVcs.getStatus());
     });
   }
 
-  private renderSkeleton(): void {
-    if (!this.panelContainer) return;
+  private renderInitialHtml(): void {
+    if (!this.container) return;
 
-    this.panelContainer.innerHTML = `
+    this.container.innerHTML = `
       <div class="sidebar-header">
         <span class="sidebar-title">CONTROL DE CÓDIGO FUENTE</span>
         <div class="sidebar-actions">
@@ -127,6 +139,55 @@ export class GitView {
             <ul id="git-unstaged-list" class="git-file-list"></ul>
           </div>
 
+          <!-- Remote Repository Section -->
+          <div class="git-section git-remote-section">
+            <div class="git-section-header">
+              <span class="git-section-title">SINCRONIZACIÓN REMOTA</span>
+              <button class="icon-btn-micro" id="btn-remote-toggle-config" title="Configurar Remoto">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="3"></circle>
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+              </button>
+            </div>
+            <div class="git-remote-content">
+              <div class="git-remote-info">
+                <span id="remote-info-label" class="git-remote-repo-text">Sin remoto</span>
+                <span id="remote-status-badge" class="remote-badge unconfigured">Desconectado</span>
+              </div>
+              <div id="remote-config-form" class="remote-config-form" style="display: none;">
+                <div class="form-row">
+                  <label class="remote-input-label">Proveedor:</label>
+                  <select id="remote-provider-select" class="vscode-select">
+                    <option value="github">GitHub</option>
+                    <option value="codeberg">Codeberg</option>
+                  </select>
+                </div>
+                <div class="form-row">
+                  <label class="remote-input-label">Repositorio (usuario/repo):</label>
+                  <input type="text" id="remote-repo-input" class="vscode-input" placeholder="MauricioPerera/mi-repo" />
+                </div>
+                <div class="form-row">
+                  <label class="remote-input-label">Personal Access Token (PAT):</label>
+                  <input type="password" id="remote-token-input" class="vscode-input" placeholder="ghp_... o token Codeberg" />
+                </div>
+                <div class="form-row-actions">
+                  <button id="btn-remote-save" class="btn btn-primary btn-micro">Guardar</button>
+                  <button id="btn-remote-clear" class="btn btn-secondary btn-micro">Limpiar</button>
+                </div>
+              </div>
+              <div class="remote-actions-row">
+                <button id="btn-remote-push" class="btn btn-primary btn-micro remote-action-btn" title="Subir al repositorio remoto">
+                  ↑ Push
+                </button>
+                <button id="btn-remote-pull" class="btn btn-secondary btn-micro remote-action-btn" title="Descargar desde el repositorio remoto">
+                  ↓ Pull
+                </button>
+              </div>
+              <div id="remote-status-msg" class="remote-status-msg"></div>
+            </div>
+          </div>
+
           <!-- Commit History Section -->
           <div class="git-section git-history-section">
             <div class="git-section-header">
@@ -186,6 +247,133 @@ export class GitView {
         }
       }
     });
+
+    // Remote sync events
+    const toggleConfigBtn = document.getElementById('btn-remote-toggle-config');
+    const configForm = document.getElementById('remote-config-form');
+    toggleConfigBtn?.addEventListener('click', () => {
+      if (configForm) {
+        configForm.style.display = configForm.style.display === 'none' ? 'block' : 'none';
+      }
+    });
+
+    document.getElementById('btn-remote-save')?.addEventListener('click', () => {
+      this.saveRemoteConfig();
+    });
+
+    document.getElementById('btn-remote-clear')?.addEventListener('click', () => {
+      remoteSync.clearConfig();
+      if (configForm) configForm.style.display = 'none';
+      this.showRemoteMessage('Configuración remota eliminada.', 'info');
+    });
+
+    document.getElementById('btn-remote-push')?.addEventListener('click', async () => {
+      await this.handleRemotePush();
+    });
+
+    document.getElementById('btn-remote-pull')?.addEventListener('click', async () => {
+      await this.handleRemotePull();
+    });
+  }
+
+  private saveRemoteConfig(): void {
+    const provider = (document.getElementById('remote-provider-select') as HTMLSelectElement)?.value as any;
+    const repo = (document.getElementById('remote-repo-input') as HTMLInputElement)?.value.trim();
+    const token = (document.getElementById('remote-token-input') as HTMLInputElement)?.value.trim();
+
+    if (!repo) {
+      alert('Por favor especifique el repositorio (ej: usuario/mi-repo).');
+      return;
+    }
+
+    try {
+      remoteSync.setConfig({
+        provider,
+        repo,
+        token: token || undefined,
+      });
+      const form = document.getElementById('remote-config-form');
+      if (form) form.style.display = 'none';
+      this.showRemoteMessage('Configuración remota guardada con éxito.', 'success');
+    } catch (err: any) {
+      alert('Error: ' + err.message);
+    }
+  }
+
+  private async handleRemotePush(): Promise<void> {
+    const pushBtn = document.getElementById('btn-remote-push') as HTMLButtonElement;
+    if (pushBtn) pushBtn.disabled = true;
+    this.showRemoteMessage('Enviando cambios al repositorio remoto...', 'info');
+
+    try {
+      const res = await remoteSync.push();
+      this.showRemoteMessage(`✓ Push completado con éxito a ${res.repo} (${res.commitSha.slice(0, 7)})`, 'success', res.url);
+    } catch (err: any) {
+      this.showRemoteMessage(`✕ Error en push: ${err.message}`, 'error');
+    } finally {
+      if (pushBtn) pushBtn.disabled = false;
+    }
+  }
+
+  private async handleRemotePull(): Promise<void> {
+    const pullBtn = document.getElementById('btn-remote-pull') as HTMLButtonElement;
+    if (pullBtn) pullBtn.disabled = true;
+    this.showRemoteMessage('Descargando cambios desde el repositorio remoto...', 'info');
+
+    try {
+      const res = await remoteSync.pull();
+      this.showRemoteMessage(`✓ Pull completado: ${res.filesUpdated} archivos actualizados.`, 'success');
+      this.updateView(gitVcs.getStatus());
+    } catch (err: any) {
+      this.showRemoteMessage(`✕ Error en pull: ${err.message}`, 'error');
+    } finally {
+      if (pullBtn) pullBtn.disabled = false;
+    }
+  }
+
+  private updateRemoteView(): void {
+    const config = remoteSync.getConfig();
+    const infoLabel = document.getElementById('remote-info-label');
+    const statusBadge = document.getElementById('remote-status-badge');
+    const repoInput = document.getElementById('remote-repo-input') as HTMLInputElement;
+    const providerSelect = document.getElementById('remote-provider-select') as HTMLSelectElement;
+
+    if (config) {
+      if (infoLabel) infoLabel.textContent = `${config.provider === 'github' ? 'GitHub' : 'Codeberg'}: ${config.repo}`;
+      if (statusBadge) {
+        statusBadge.textContent = 'Conectado';
+        statusBadge.className = 'remote-badge connected';
+      }
+      if (repoInput) repoInput.value = config.repo;
+      if (providerSelect) providerSelect.value = config.provider;
+    } else {
+      if (infoLabel) infoLabel.textContent = 'Sin remoto configurado';
+      if (statusBadge) {
+        statusBadge.textContent = 'Desconectado';
+        statusBadge.className = 'remote-badge unconfigured';
+      }
+    }
+  }
+
+  private showRemoteMessage(text: string, type: 'info' | 'success' | 'error', linkUrl?: string): void {
+    const msgEl = document.getElementById('remote-status-msg');
+    if (!msgEl) return;
+
+    msgEl.className = `remote-status-msg ${type}`;
+    if (linkUrl) {
+      msgEl.innerHTML = `${this.escapeHtml(text)} <a href="${linkUrl}" target="_blank" rel="noopener" style="color: #38bdf8; text-decoration: underline; margin-left: 4px;">Ver commit ↗</a>`;
+    } else {
+      msgEl.textContent = text;
+    }
+
+    if (type !== 'error') {
+      setTimeout(() => {
+        if (msgEl.textContent === text) {
+          msgEl.textContent = '';
+          msgEl.className = 'remote-status-msg';
+        }
+      }, 8000);
+    }
   }
 
   private handleCommit(): void {
@@ -395,29 +583,32 @@ export class GitView {
 
   private renderHistory(): void {
     if (!this.historyContainer) return;
+
     const commits = gitVcs.getLog(15);
+    this.historyContainer.innerHTML = '';
 
     if (commits.length === 0) {
       this.historyContainer.innerHTML = '<div class="git-empty-state">Sin commits todavía</div>';
       return;
     }
 
-    this.historyContainer.innerHTML = '';
-    for (const c of commits) {
-      const el = document.createElement('div');
-      el.className = 'git-history-item';
-      const shortHash = c.hash.substring(0, 7);
-      const timeStr = new Date(c.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    for (const commit of commits) {
+      const item = document.createElement('div');
+      item.className = 'git-history-item';
 
-      el.innerHTML = `
+      const shortHash = commit.hash.substring(0, 7);
+      const dateStr = new Date(commit.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      item.innerHTML = `
         <div class="git-history-top">
-          <span class="git-history-hash">${shortHash}</span>
-          <span class="git-history-time">${timeStr}</span>
+          <span class="git-history-hash" title="${commit.hash}">${shortHash}</span>
+          <span class="git-history-time">${dateStr}</span>
         </div>
-        <div class="git-history-msg" title="${this.escapeHtml(c.message)}">${this.escapeHtml(c.message)}</div>
-        <div class="git-history-author">${this.escapeHtml(c.author)}</div>
+        <div class="git-history-msg" title="${this.escapeHtml(commit.message)}">${this.escapeHtml(commit.message)}</div>
+        <div class="git-history-author" title="${commit.author}">${this.escapeHtml(commit.author)}</div>
       `;
-      this.historyContainer.appendChild(el);
+
+      this.historyContainer.appendChild(item);
     }
   }
 
@@ -425,8 +616,7 @@ export class GitView {
     return str
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
+      .replace(/>/g, '&gt;');
   }
 }
 

@@ -19,11 +19,11 @@ describe('WebMcpService & fastwebmcp tools', () => {
     service = new WebMcpService();
   });
 
-  it('registers all 13 core IDE & Git tools', () => {
+  it('registers all 16 core IDE & Git Remote tools', () => {
     const tools = service.getRegisteredTools();
     const toolNames = tools.map((t) => t.name);
 
-    expect(toolNames).toHaveLength(13);
+    expect(toolNames).toHaveLength(16);
     expect(toolNames).toContain('ide_get_active_file');
     expect(toolNames).toContain('ide_list_files');
     expect(toolNames).toContain('ide_read_file');
@@ -37,6 +37,9 @@ describe('WebMcpService & fastwebmcp tools', () => {
     expect(toolNames).toContain('git_log');
     expect(toolNames).toContain('git_diff');
     expect(toolNames).toContain('git_branch');
+    expect(toolNames).toContain('git_remote_config');
+    expect(toolNames).toContain('git_remote_push');
+    expect(toolNames).toContain('git_remote_pull');
   });
 
   it('executes ide_list_files tool successfully', async () => {
@@ -163,5 +166,38 @@ describe('WebMcpService & fastwebmcp tools', () => {
     });
     expect(switchBranch.success).toBe(true);
     expect(switchBranch.currentBranch).toBe('feat-webmcp-agent');
+  });
+
+  it('executes git_remote_config via WebMCP', async () => {
+    // 1. Set config
+    const setRes: any = await service.executeTool('git_remote_config', {
+      action: 'set',
+      provider: 'github',
+      repo: 'MauricioPerera/webmcp-code-studio',
+      branch: 'main',
+      token: 'ghp_agent_mock_token',
+    });
+    expect(setRes.success).toBe(true);
+    expect(setRes.config.provider).toBe('github');
+    expect(setRes.config.repo).toBe('MauricioPerera/webmcp-code-studio');
+    expect(setRes.config.hasToken).toBe(true);
+
+    // 2. Get config
+    const getRes: any = await service.executeTool('git_remote_config', {
+      action: 'get',
+    });
+    expect(getRes.configured).toBe(true);
+    expect(getRes.config.repo).toBe('MauricioPerera/webmcp-code-studio');
+
+    // 3. Clear config
+    const clearRes: any = await service.executeTool('git_remote_config', {
+      action: 'clear',
+    });
+    expect(clearRes.success).toBe(true);
+
+    const checkRes: any = await service.executeTool('git_remote_config', {
+      action: 'get',
+    });
+    expect(checkRes.configured).toBe(false);
   });
 });

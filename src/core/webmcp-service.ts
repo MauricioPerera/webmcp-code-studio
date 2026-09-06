@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { registerTool, supportsWebMcp, createWebMcpMock } from 'fastwebmcp';
 import { vfs } from './vfs';
 import { gitVcs } from './git-vcs';
+import { remoteSync } from './remote-sync';
 import { sandboxManager } from './sandbox';
 import { eventBus } from './event-bus';
 import { WebMcpToolMetadata, WebMcpExecutionLog } from './types';
@@ -512,6 +513,101 @@ export class WebMcpService {
           };
         }
         throw new Error(`Acción desconocida: ${action}`);
+      },
+    });
+
+    // 14. git_remote_config
+    this.registerCustomTool({
+      name: 'git_remote_config',
+      description: 'Consulta, establece o elimina la configuración del repositorio remoto (GitHub o Codeberg) para sincronización con PAT.',
+      inputSchema: z.object({
+        action: z.enum(['get', 'set', 'clear']).optional().default('get'),
+        provider: z.enum(['github', 'codeberg']).optional(),
+        repo: z.string().optional(),
+        branch: z.string().optional(),
+        token: z.string().optional(),
+        customBaseUrl: z.string().optional(),
+      }),
+      parametersList: [
+        { name: 'action', type: 'string', description: "Acción a realizar: 'get', 'set' o 'clear' (por defecto 'get').", required: false },
+        { name: 'provider', type: 'string', description: "Proveedor: 'github' o 'codeberg'.", required: false },
+        { name: 'repo', type: 'string', description: "Nombre del repositorio en formato 'usuario/repo'.", required: false },
+        { name: 'branch', type: 'string', description: 'Rama remota destino (por defecto main).', required: false },
+        { name: 'token', type: 'string', description: 'Personal Access Token (PAT) con permisos de escritura.', required: false },
+        { name: 'customBaseUrl', type: 'string', description: 'URL base personalizada para instancias autohospedadas.', required: false },
+      ],
+      readOnlyHint: false,
+      execute: async ({ action, provider, repo, branch, token, customBaseUrl }) => {
+        if (action === 'clear') {
+          remoteSync.clearConfig();
+          return { success: true, message: 'Configuración remota eliminada.' };
+        }
+        if (action === 'set' || (repo && (provider || token))) {
+          const updated = remoteSync.setConfig({
+            provider,
+            repo,
+            branch,
+            token,
+            customBaseUrl,
+          });
+          return {
+            success: true,
+            config: {
+              provider: updated.provider,
+              repo: updated.repo,
+              branch: updated.branch,
+              hasToken: !!updated.token,
+              customBaseUrl: updated.customBaseUrl,
+            },
+          };
+        }
+        const current = remoteSync.getConfig();
+        return {
+          configured: !!current,
+          config: current
+            ? {
+                provider: current.provider,
+                repo: current.repo,
+                branch: current.branch,
+                hasToken: !!current.token,
+                customBaseUrl: current.customBaseUrl,
+              }
+            : null,
+        };
+      },
+    });
+
+    // 15. git_remote_push
+    this.registerCustomTool({
+      name: 'git_remote_push',
+      description: 'Publica la rama activa o instantánea del VFS actual hacia el repositorio remoto configurado (GitHub o Codeberg) usando el Personal Access Token.',
+      inputSchema: z.object({
+        message: z.string().optional(),
+        branch: z.string().optional(),
+      }),
+      parametersList: [
+        { name: 'message', type: 'string', description: 'Mensaje descriptivo del commit remoto.', required: false },
+        { name: 'branch', type: 'string', description: 'Rama remota destino (opcional).', required: false },
+      ],
+      readOnlyHint: false,
+      execute: async ({ message, branch }) => {
+        return await remoteSync.push({ message, branch });
+      },
+    });
+
+    // 16. git_remote_pull
+    this.registerCustomTool({
+      name: 'git_remote_pull',
+      description: 'Sincroniza y descarga los archivos desde la rama remota configurada en GitHub o Codeberg hacia el VFS local.',
+      inputSchema: z.object({
+        branch: z.string().optional(),
+      }),
+      parametersList: [
+        { name: 'branch', type: 'string', description: 'Rama remota desde donde descargar los archivos (opcional).', required: false },
+      ],
+      readOnlyHint: false,
+      execute: async ({ branch }) => {
+        return await remoteSync.pull({ branch });
       },
     });
   }
