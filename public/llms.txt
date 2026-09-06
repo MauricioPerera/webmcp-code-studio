@@ -112,6 +112,22 @@ const tools = document.modelContext.getTools();
 - **Annotations:** `readOnlyHint: true`
 - **Output:** `{ branch: string, total: number, commits: Array<{ hash: string, message: string, author: string, timestamp: number, branch: string }> }`
 
+### 12. `git_diff`
+- **Description:** Compute a standard Git-style unified diff patch (`--- a/... +++ b/...`) between current workspace changes and the latest commit (`HEAD`).
+- **Parameters:**
+  - `path` (string, optional): Specific file path to diff. If omitted, diffs all modified files across the workspace.
+- **Annotations:** `readOnlyHint: true`
+- **Output:** `{ path?: string, hasChanges?: boolean, totalModifiedFiles?: number, addedLines?: number, removedLines?: number, diff: string }`
+- **Recommended Agent Use:** Inspect code differences before creating a commit, or verify exact patches.
+
+### 13. `git_branch`
+- **Description:** Manage local Git branches: query the active branch and branch list (`action: 'list'`), create a new isolated branch (`action: 'create'`), or switch between branches (`action: 'switch'`).
+- **Parameters:**
+  - `action` (string, required): One of `'list'`, `'create'`, or `'switch'`.
+  - `name` (string, optional): Name of the branch to create or switch to (required for `'create'` and `'switch'`).
+- **Annotations:** `readOnlyHint: false`
+- **Output:** `{ currentBranch: string, branches: string[], success?: boolean, action?: string }`
+
 ---
 
 ## Agent Workflow Pattern

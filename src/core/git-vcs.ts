@@ -26,6 +26,89 @@ export interface GitStatusResult {
   totalChanges: number;
 }
 
+export interface GitFileDiffResult {
+  path: string;
+  status: GitFileStatus;
+  original: string;
+  modified: string;
+  diffText: string;
+  added: number;
+  removed: number;
+}
+
+function computeLineDiff(original: string, modified: string, path: string): { diffText: string; added: number; removed: number } {
+  const origLines = original === '' ? [] : original.split('\n');
+  const modLines = modified === '' ? [] : modified.split('\n');
+  const n = origLines.length;
+  const m = modLines.length;
+
+  let start = 0;
+  while (start < n && start < m && origLines[start] === modLines[start]) {
+    start++;
+  }
+  let endOrig = n - 1;
+  let endMod = m - 1;
+  while (endOrig >= start && endMod >= start && origLines[endOrig] === modLines[endMod]) {
+    endOrig--;
+    endMod--;
+  }
+
+  const subOrig = origLines.slice(start, endOrig + 1);
+  const subMod = modLines.slice(start, endMod + 1);
+  const sn = subOrig.length;
+  const sm = subMod.length;
+
+  const dp: number[][] = Array.from({ length: sn + 1 }, () => new Array(sm + 1).fill(0));
+  for (let i = 0; i < sn; i++) {
+    for (let j = 0; j < sm; j++) {
+      if (subOrig[i] === subMod[j]) {
+        dp[i + 1][j + 1] = dp[i][j] + 1;
+      } else {
+        dp[i + 1][j + 1] = Math.max(dp[i + 1][j], dp[i][j + 1]);
+      }
+    }
+  }
+
+  let i = sn;
+  let j = sm;
+  const middle: { type: 'common' | 'add' | 'remove'; text: string }[] = [];
+  let added = 0;
+  let removed = 0;
+
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && subOrig[i - 1] === subMod[j - 1]) {
+      middle.unshift({ type: 'common', text: subOrig[i - 1] });
+      i--;
+      j--;
+    } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+      middle.unshift({ type: 'add', text: subMod[j - 1] });
+      added++;
+      j--;
+    } else {
+      middle.unshift({ type: 'remove', text: subOrig[i - 1] });
+      removed++;
+      i--;
+    }
+  }
+
+  if (added === 0 && removed === 0 && n === m) {
+    return { diffText: '', added: 0, removed: 0 };
+  }
+
+  const prefix = origLines.slice(0, start).map((t) => ({ type: 'common' as const, text: t }));
+  const suffix = origLines.slice(endOrig + 1).map((t) => ({ type: 'common' as const, text: t }));
+  const all = [...prefix, ...middle, ...suffix];
+
+  const header = `--- a${path}\n+++ b${path}\n@@ -1,${n} +1,${m} @@\n`;
+  const body = all.map((d) => {
+    if (d.type === 'add') return '+' + d.text;
+    if (d.type === 'remove') return '-' + d.text;
+    return ' ' + d.text;
+  }).join('\n');
+
+  return { diffText: header + body, added, removed };
+}
+
 const STORAGE_KEY = 'webmcp_studio_git_v1';
 
 export class GitVersionControl {
@@ -294,6 +377,54 @@ export class GitVersionControl {
     this.stagedPaths.delete(path);
     eventBus.emit('git:status_changed', this.getStatus());
     return true;
+  }
+
+  public getHeadContent(path: string): string | null {
+    const latestCommit = this.getLatestCommit();
+    if (!latestCommit || !latestCommit.snapshot) return null;
+    return latestCommit.snapshot[path] ?? null;
+  }
+
+  public getFileDiff(path: string): GitFileDiffResult {
+    const headContent = this.getHeadContent(path);
+    const currentContent = vfs.readFile(path);
+    const original = headContent ?? '';
+    const modified = currentContent ?? '';
+
+    let status: GitFileStatus = 'M';
+    if (headContent === null && currentContent !== null) {
+      status = 'A';
+    } else if (headContent !== null && currentContent === null) {
+      status = 'D';
+    }
+
+    const { diffText, added, removed } = computeLineDiff(original, modified, path);
+    return {
+      path,
+      status,
+      original,
+      modified,
+      diffText,
+      added,
+      removed,
+    };
+  }
+
+  public getUnifiedDiff(targetPath?: string): string {
+    if (targetPath) {
+      return this.getFileDiff(targetPath).diffText;
+    }
+    const status = this.getStatus();
+    const allChanges = [...status.staged, ...status.unstaged];
+    const uniquePaths = Array.from(new Set(allChanges.map((c) => c.path)));
+    const diffs: string[] = [];
+    for (const p of uniquePaths) {
+      const fileDiff = this.getFileDiff(p);
+      if (fileDiff.diffText) {
+        diffs.push(fileDiff.diffText);
+      }
+    }
+    return diffs.join('\n\n');
   }
 
   public setAuthor(author: string): void {

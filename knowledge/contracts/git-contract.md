@@ -11,7 +11,7 @@ test_command: 'npm test'
 budget:
   cyclomatic_max: 15
 tests: 'tests/git.test.ts'
-tests_sha256: '96e566b4fdd9bffc7cbbd1d3fe56392a94402c80115195ab8320786aa7f131f0'
+tests_sha256: '0b9d098da3fa981a33fa978110ea38535ba7f9546a08dedb4580bd61475193c8'
 touch_only: ['src/core/git-vcs.ts']
 deps_allowed: []
 forbids: ['child_process', 'fs']
@@ -34,6 +34,9 @@ La clase `GitVersionControl` expone:
 - `createBranch(name: string): boolean`
 - `checkoutBranch(name: string): boolean`
 - `discardFileChanges(path: string): boolean`
+- `getHeadContent(path: string): string | null`
+- `getFileDiff(path: string): GitFileDiffResult`
+- `getUnifiedDiff(targetPath?: string): string`
 
 ## Invariants
 1. El commit inicial debe crearse automaticamente cuando el VFS contenga archivos y no existan commits previos.

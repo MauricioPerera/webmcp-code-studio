@@ -421,6 +421,99 @@ export class WebMcpService {
         };
       },
     });
+
+    // 12. git_diff
+    this.registerCustomTool({
+      name: 'git_diff',
+      description: 'Calcula las diferencias (diff unificado tipo Git) entre el estado de trabajo actual en el VFS y el último commit (HEAD) para un archivo específico o para todo el repositorio.',
+      inputSchema: z.object({
+        path: z.string().optional(),
+      }),
+      parametersList: [
+        { name: 'path', type: 'string', description: 'Ruta del archivo a inspeccionar (opcional; si se omite, retorna el diff de todos los cambios pendientes).', required: false },
+      ],
+      readOnlyHint: true,
+      execute: async ({ path }) => {
+        if (path) {
+          const fileDiff = gitVcs.getFileDiff(path);
+          return {
+            path: fileDiff.path,
+            status: fileDiff.status,
+            hasChanges: fileDiff.diffText.length > 0,
+            addedLines: fileDiff.added,
+            removedLines: fileDiff.removed,
+            diff: fileDiff.diffText,
+          };
+        }
+        const status = gitVcs.getStatus();
+        const allChanges = [...status.staged, ...status.unstaged];
+        const uniquePaths = Array.from(new Set(allChanges.map((c) => c.path)));
+        const files = uniquePaths.map((p) => {
+          const d = gitVcs.getFileDiff(p);
+          return {
+            path: d.path,
+            status: d.status,
+            addedLines: d.added,
+            removedLines: d.removed,
+          };
+        });
+        const unifiedDiff = gitVcs.getUnifiedDiff();
+        return {
+          totalModifiedFiles: files.length,
+          files,
+          diff: unifiedDiff,
+        };
+      },
+    });
+
+    // 13. git_branch
+    this.registerCustomTool({
+      name: 'git_branch',
+      description: "Gestiona ramas locales en el motor Git del cliente: listar ramas ('list'), crear una nueva rama ('create') o alternar entre ramas ('switch').",
+      inputSchema: z.object({
+        action: z.enum(['list', 'create', 'switch']).describe("Acción a realizar: 'list', 'create' o 'switch'"),
+        name: z.string().optional().describe("Nombre de la rama (requerido para 'create' y 'switch')"),
+      }),
+      parametersList: [
+        { name: 'action', type: 'string', description: "Acción a realizar: 'list', 'create' o 'switch'.", required: true },
+        { name: 'name', type: 'string', description: "Nombre de la rama (requerido para 'create' y 'switch').", required: false },
+      ],
+      readOnlyHint: false,
+      execute: async ({ action, name }) => {
+        if (action === 'list') {
+          return {
+            currentBranch: gitVcs.getCurrentBranch(),
+            branches: gitVcs.getBranches(),
+          };
+        }
+        if (action === 'create') {
+          if (!name || !name.trim()) {
+            throw new Error("El parámetro 'name' es requerido para crear una rama.");
+          }
+          gitVcs.createBranch(name.trim());
+          return {
+            success: true,
+            action: 'create',
+            createdBranch: name.trim(),
+            currentBranch: gitVcs.getCurrentBranch(),
+            branches: gitVcs.getBranches(),
+          };
+        }
+        if (action === 'switch') {
+          if (!name || !name.trim()) {
+            throw new Error("El parámetro 'name' es requerido para cambiar de rama.");
+          }
+          gitVcs.checkoutBranch(name.trim());
+          return {
+            success: true,
+            action: 'switch',
+            currentBranch: gitVcs.getCurrentBranch(),
+            branches: gitVcs.getBranches(),
+          };
+        }
+        throw new Error(`Acción desconocida: ${action}`);
+      },
+    });
   }
 }
 

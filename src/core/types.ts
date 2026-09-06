@@ -24,6 +24,8 @@ export interface OpenTab {
   path: string;
   isDirty: boolean;
   modelUri?: string;
+  isDiff?: boolean;
+  originalPath?: string;
 }
 
 export interface WebMcpToolParam {

@@ -123,4 +123,36 @@ describe('GitVersionControl (Client-Side VCS Engine)', () => {
     expect(git.getCurrentBranch()).toBe('main');
     expect(vfs.exists('/login.html')).toBe(false);
   });
+
+  it('returns head content and computes unified diff correctly', () => {
+    expect(git.getHeadContent('/index.html')).toBe('<h1>Initial Title</h1>');
+    expect(git.getHeadContent('/non-existent.txt')).toBeNull();
+
+    // Modify file
+    vfs.writeFile('/index.html', '<h1>Updated Title</h1>');
+    const diff = git.getFileDiff('/index.html');
+    expect(diff.path).toBe('/index.html');
+    expect(diff.status).toBe('M');
+    expect(diff.original).toBe('<h1>Initial Title</h1>');
+    expect(diff.modified).toBe('<h1>Updated Title</h1>');
+    expect(diff.diffText).toContain('--- a/index.html');
+    expect(diff.diffText).toContain('+++ b/index.html');
+    expect(diff.diffText).toContain('-<h1>Initial Title</h1>');
+    expect(diff.diffText).toContain('+<h1>Updated Title</h1>');
+
+    const unified = git.getUnifiedDiff();
+    expect(unified).toContain('--- a/index.html');
+  });
+
+  it('computes diff for added and deleted files', () => {
+    vfs.createFile('/new.js', 'console.log("new");', true);
+    const addDiff = git.getFileDiff('/new.js');
+    expect(addDiff.status).toBe('A');
+    expect(addDiff.diffText).toContain('+console.log("new");');
+
+    vfs.deleteNode('/app.js');
+    const delDiff = git.getFileDiff('/app.js');
+    expect(delDiff.status).toBe('D');
+    expect(delDiff.diffText).toContain('-console.log("hello");');
+  });
 });

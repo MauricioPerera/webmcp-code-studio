@@ -301,7 +301,7 @@ export class GitView {
 
     leftPart.onclick = () => {
       if (change.status !== 'D') {
-        editorManager.openFile(change.path);
+        editorManager.openDiff(change.path);
       }
     };
 
@@ -315,6 +315,24 @@ export class GitView {
 
     const actions = document.createElement('div');
     actions.className = 'git-item-actions';
+
+    if (change.status !== 'D') {
+      const openNormalBtn = document.createElement('button');
+      openNormalBtn.className = 'icon-btn-micro';
+      openNormalBtn.title = 'Abrir archivo estándar';
+      openNormalBtn.innerHTML = `
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+          <polyline points="15 3 21 3 21 9"></polyline>
+          <line x1="10" y1="14" x2="21" y2="3"></line>
+        </svg>
+      `;
+      openNormalBtn.onclick = (e) => {
+        e.stopPropagation();
+        editorManager.openFile(change.path);
+      };
+      actions.appendChild(openNormalBtn);
+    }
 
     if (isStaged) {
       // Unstage button (-)

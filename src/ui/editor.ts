@@ -1,12 +1,15 @@
 import loader from '@monaco-editor/loader';
 import { vfs } from '../core/vfs';
+import { gitVcs } from '../core/git-vcs';
 import { eventBus } from '../core/event-bus';
 import { OpenTab } from '../core/types';
 
 export class EditorManager {
   private monaco: any = null;
   private editor: any = null;
+  private diffEditor: any = null;
   private container: HTMLElement | null = null;
+  private diffContainer: HTMLElement | null = null;
   private welcomeEl: HTMLElement | null = null;
   private tabsContainer: HTMLElement | null = null;
   private breadcrumbEl: HTMLElement | null = null;
@@ -14,6 +17,7 @@ export class EditorManager {
   private openTabs: Map<string, OpenTab> = new Map();
   private activeTabPath: string | null = null;
   private models: Map<string, any> = new Map();
+  private diffModels: Map<string, { original: any; modified: any }> = new Map();
   private currentTheme: 'vs-dark' | 'vs' = 'vs-dark';
 
   constructor() {
@@ -22,6 +26,7 @@ export class EditorManager {
 
   public async init(containerId: string): Promise<void> {
     this.container = document.getElementById(containerId);
+    this.diffContainer = document.getElementById('monaco-diff-mount');
     this.welcomeEl = document.getElementById('editor-welcome');
     this.tabsContainer = document.getElementById('tabs-container');
     this.breadcrumbEl = document.getElementById('active-file-breadcrumb');
@@ -31,7 +36,7 @@ export class EditorManager {
     try {
       this.monaco = await loader.init();
 
-      // Create editor inside mount container
+      // Create standard editor inside mount container
       this.editor = this.monaco.editor.create(this.container, {
         value: '',
         language: 'plaintext',
@@ -45,6 +50,29 @@ export class EditorManager {
         renderWhitespace: 'selection',
         lineNumbers: 'on',
       });
+
+      // Create diff editor inside diff mount container
+      if (this.diffContainer) {
+        this.diffEditor = this.monaco.editor.createDiffEditor(this.diffContainer, {
+          theme: this.currentTheme,
+          automaticLayout: true,
+          fontSize: 14,
+          fontFamily: "'Fira Code', 'Cascadia Code', Consolas, monospace",
+          tabSize: 2,
+          renderSideBySide: true,
+          readOnly: false,
+          originalEditable: false,
+          scrollBeyondLastLine: false,
+          lineNumbers: 'on',
+        });
+
+        this.diffEditor.addCommand(
+          this.monaco.KeyMod.CtrlCmd | this.monaco.KeyCode.KeyS,
+          () => {
+            this.saveActiveFile();
+          }
+        );
+      }
 
       // Save shortcut (Ctrl+S or Cmd+S)
       this.editor.addCommand(
@@ -119,6 +147,11 @@ export class EditorManager {
   }
 
   public openFile(path: string): void {
+    if (path.startsWith('diff:')) {
+      this.openDiff(path.replace(/^diff:/, ''));
+      return;
+    }
+
     const file = vfs.readFile(path);
     if (file === null) return;
 
@@ -126,10 +159,15 @@ export class EditorManager {
       this.openTabs.set(path, {
         path,
         isDirty: false,
+        isDiff: false,
       });
     }
 
     this.activeTabPath = path;
+
+    // Show standard editor container, hide diff container
+    if (this.diffContainer) this.diffContainer.style.display = 'none';
+    if (this.container) this.container.style.display = 'block';
 
     // Get or create model
     let model = this.models.get(path);
@@ -147,6 +185,11 @@ export class EditorManager {
             this.renderTabs();
           }
         }
+        const diffTab = this.openTabs.get(`diff:${path}`);
+        if (diffTab) {
+          diffTab.isDirty = model.getValue() !== vfs.readFile(path);
+          this.renderTabs();
+        }
       });
 
       this.models.set(path, model);
@@ -154,6 +197,7 @@ export class EditorManager {
 
     if (this.editor && model) {
       this.editor.setModel(model);
+      this.editor.layout();
     }
 
     this.renderTabs();
@@ -163,26 +207,114 @@ export class EditorManager {
     eventBus.emit('editor:file_opened', path);
   }
 
+  public openDiff(path: string): void {
+    const diffTabKey = `diff:${path}`;
+    const headContent = gitVcs.getHeadContent(path) ?? '';
+    const currentContent = vfs.readFile(path) ?? '';
+
+    if (!this.openTabs.has(diffTabKey)) {
+      this.openTabs.set(diffTabKey, {
+        path: diffTabKey,
+        isDirty: false,
+        isDiff: true,
+        originalPath: path,
+      });
+    }
+
+    this.activeTabPath = diffTabKey;
+
+    // Show diff container, hide standard editor container
+    if (this.container) this.container.style.display = 'none';
+    if (this.diffContainer) this.diffContainer.style.display = 'block';
+
+    if (this.monaco && this.diffEditor) {
+      const lang = this.detectLanguage(path);
+      let diffPair = this.diffModels.get(diffTabKey);
+      if (!diffPair) {
+        const originalModel = this.monaco.editor.createModel(headContent, lang);
+
+        let modifiedModel = this.models.get(path);
+        if (!modifiedModel) {
+          modifiedModel = this.monaco.editor.createModel(currentContent, lang);
+          this.models.set(path, modifiedModel);
+        }
+
+        modifiedModel.onDidChangeContent(() => {
+          const tab = this.openTabs.get(diffTabKey);
+          if (tab) {
+            const diskContent = vfs.readFile(path);
+            const isDirty = modifiedModel.getValue() !== diskContent;
+            if (tab.isDirty !== isDirty) {
+              tab.isDirty = isDirty;
+              this.renderTabs();
+            }
+          }
+          const normalTab = this.openTabs.get(path);
+          if (normalTab) {
+            normalTab.isDirty = modifiedModel.getValue() !== vfs.readFile(path);
+            this.renderTabs();
+          }
+        });
+
+        diffPair = { original: originalModel, modified: modifiedModel };
+        this.diffModels.set(diffTabKey, diffPair);
+      } else {
+        if (diffPair.original.getValue() !== headContent) {
+          diffPair.original.setValue(headContent);
+        }
+        if (diffPair.modified.getValue() !== currentContent) {
+          diffPair.modified.setValue(currentContent);
+        }
+      }
+
+      this.diffEditor.setModel({
+        original: diffPair.original,
+        modified: diffPair.modified,
+      });
+      this.diffEditor.layout();
+    }
+
+    this.renderTabs();
+    this.updateBreadcrumb(diffTabKey);
+    this.updateWelcomeVisibility();
+
+    eventBus.emit('editor:diff_opened', { path });
+  }
+
   public closeTab(path: string): void {
     const tab = this.openTabs.get(path);
     if (!tab) return;
 
-    // Remove model
-    const model = this.models.get(path);
-    if (model) {
-      model.dispose();
-      this.models.delete(path);
+    if (path.startsWith('diff:')) {
+      const diffPair = this.diffModels.get(path);
+      if (diffPair) {
+        diffPair.original.dispose();
+        this.diffModels.delete(path);
+      }
+    } else {
+      const model = this.models.get(path);
+      if (model) {
+        model.dispose();
+        this.models.delete(path);
+      }
     }
 
     this.openTabs.delete(path);
 
     // If active tab was closed, switch to another tab or null
     if (this.activeTabPath === path) {
-      const remaining = Array.from(this.openTabs.keys());
+      const remaining = Array.from(this.openTabs.values());
       if (remaining.length > 0) {
-        this.openFile(remaining[remaining.length - 1]);
+        const nextTab = remaining[remaining.length - 1];
+        if (nextTab.isDiff) {
+          this.openDiff(nextTab.originalPath || nextTab.path.replace(/^diff:/, ''));
+        } else {
+          this.openFile(nextTab.path);
+        }
       } else {
         this.activeTabPath = null;
+        if (this.diffContainer) this.diffContainer.style.display = 'none';
+        if (this.container) this.container.style.display = 'block';
         if (this.editor) {
           this.editor.setModel(null);
         }
@@ -198,9 +330,17 @@ export class EditorManager {
     for (const model of this.models.values()) {
       model.dispose();
     }
+    for (const pair of this.diffModels.values()) {
+      pair.original.dispose();
+    }
     this.models.clear();
+    this.diffModels.clear();
     this.openTabs.clear();
     this.activeTabPath = null;
+
+    if (this.diffContainer) this.diffContainer.style.display = 'none';
+    if (this.container) this.container.style.display = 'block';
+
     if (this.editor) {
       this.editor.setModel(null);
     }
@@ -210,20 +350,31 @@ export class EditorManager {
   }
 
   public saveActiveFile(): void {
-    if (!this.activeTabPath || !this.models.has(this.activeTabPath)) return;
-    const model = this.models.get(this.activeTabPath)!;
+    if (!this.activeTabPath) return;
+
+    let targetPath = this.activeTabPath;
+    if (this.activeTabPath.startsWith('diff:')) {
+      targetPath = this.activeTabPath.replace(/^diff:/, '');
+    }
+
+    if (!this.models.has(targetPath)) return;
+    const model = this.models.get(targetPath)!;
     const content = model.getValue();
 
-    vfs.writeFile(this.activeTabPath, content);
+    vfs.writeFile(targetPath, content);
     vfs.saveToStorage();
 
     const tab = this.openTabs.get(this.activeTabPath);
     if (tab) {
       tab.isDirty = false;
-      this.renderTabs();
+    }
+    const normalTab = this.openTabs.get(targetPath);
+    if (normalTab) {
+      normalTab.isDirty = false;
     }
 
-    eventBus.emit('editor:file_saved', { path: this.activeTabPath });
+    this.renderTabs();
+    eventBus.emit('editor:file_saved', { path: targetPath });
   }
 
   public toggleTheme(): 'vs-dark' | 'vs' {
@@ -240,8 +391,12 @@ export class EditorManager {
   }
 
   public getActiveFileContent(): string | null {
-    if (!this.activeTabPath || !this.models.has(this.activeTabPath)) return null;
-    return this.models.get(this.activeTabPath)!.getValue();
+    if (!this.activeTabPath) return null;
+    const targetPath = this.activeTabPath.startsWith('diff:')
+      ? this.activeTabPath.replace(/^diff:/, '')
+      : this.activeTabPath;
+    if (!this.models.has(targetPath)) return null;
+    return this.models.get(targetPath)!.getValue();
   }
 
   public hasUnsavedChanges(): boolean {
@@ -251,21 +406,34 @@ export class EditorManager {
     return false;
   }
 
+  private escapeHtml(str: string): string {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
   private renderTabs(): void {
     if (!this.tabsContainer) return;
     this.tabsContainer.innerHTML = '';
 
     for (const [path, tab] of this.openTabs.entries()) {
-      const fileName = vfs.getNodeName(path);
+      const isDiff = tab.isDiff || path.startsWith('diff:');
+      const targetPath = tab.originalPath || path.replace(/^diff:/, '');
+      const fileName = vfs.getNodeName(targetPath) || targetPath;
       const isActive = path === this.activeTabPath;
 
       const tabEl = document.createElement('div');
-      tabEl.className = `vscode-tab ${isActive ? 'active' : ''} ${tab.isDirty ? 'dirty' : ''}`;
-      tabEl.title = path;
+      tabEl.className = 'vscode-tab ' + (isDiff ? 'tab-diff ' : '') + (isActive ? 'active ' : '') + (tab.isDirty ? 'dirty' : '');
+      tabEl.title = isDiff ? ('Comparativa Git: ' + targetPath + ' frente a HEAD') : path;
 
       const titleEl = document.createElement('span');
       titleEl.className = 'tab-title';
-      titleEl.textContent = fileName;
+      if (isDiff) {
+        titleEl.innerHTML = '<span class="tab-diff-tag">DIFF</span> ' + this.escapeHtml(fileName);
+      } else {
+        titleEl.textContent = fileName;
+      }
 
       const closeBtn = document.createElement('button');
       closeBtn.className = 'tab-close';
@@ -280,7 +448,11 @@ export class EditorManager {
       tabEl.appendChild(closeBtn);
 
       tabEl.onclick = () => {
-        this.openFile(path);
+        if (isDiff) {
+          this.openDiff(targetPath);
+        } else {
+          this.openFile(path);
+        }
       };
 
       this.tabsContainer.appendChild(tabEl);
@@ -293,9 +465,16 @@ export class EditorManager {
       this.breadcrumbEl.textContent = 'Ningún archivo abierto';
       return;
     }
+
+    if (path.startsWith('diff:')) {
+      const targetPath = path.replace(/^diff:/, '');
+      this.breadcrumbEl.innerHTML = '<span class="crumb">Control de Código Fuente</span> &gt; <span class="crumb diff-crumb">' + this.escapeHtml(targetPath) + ' <em>(Working Tree ↔ HEAD)</em></span>';
+      return;
+    }
+
     const parts = path.split('/').filter(Boolean);
     this.breadcrumbEl.innerHTML = parts
-      .map((part, idx) => `<span class="crumb">${part}${idx < parts.length - 1 ? ' &gt; ' : ''}</span>`)
+      .map((part, idx) => '<span class="crumb">' + part + (idx < parts.length - 1 ? ' &gt; ' : '') + '</span>')
       .join('');
   }
 

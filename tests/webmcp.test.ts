@@ -19,10 +19,11 @@ describe('WebMcpService & fastwebmcp tools', () => {
     service = new WebMcpService();
   });
 
-  it('registers all 11 core IDE & Git tools', () => {
+  it('registers all 13 core IDE & Git tools', () => {
     const tools = service.getRegisteredTools();
     const toolNames = tools.map((t) => t.name);
 
+    expect(toolNames).toHaveLength(13);
     expect(toolNames).toContain('ide_get_active_file');
     expect(toolNames).toContain('ide_list_files');
     expect(toolNames).toContain('ide_read_file');
@@ -34,6 +35,8 @@ describe('WebMcpService & fastwebmcp tools', () => {
     expect(toolNames).toContain('git_status');
     expect(toolNames).toContain('git_commit');
     expect(toolNames).toContain('git_log');
+    expect(toolNames).toContain('git_diff');
+    expect(toolNames).toContain('git_branch');
   });
 
   it('executes ide_list_files tool successfully', async () => {
@@ -122,5 +125,43 @@ describe('WebMcpService & fastwebmcp tools', () => {
     const logRes: any = await service.executeTool('git_log', { limit: 5 });
     expect(logRes.commits.length).toBeGreaterThanOrEqual(1);
     expect(logRes.commits[0].message).toBe('test: commit via WebMCP tool');
+  });
+
+  it('executes git_diff and git_branch via WebMCP', async () => {
+    // 1. Modify a file
+    vfs.writeFile('/index.html', '<h1>Changed for git_diff</h1>');
+
+    // 2. Query git_diff for single file
+    const fileDiff: any = await service.executeTool('git_diff', { path: '/index.html' });
+    expect(fileDiff.path).toBe('/index.html');
+    expect(fileDiff.hasChanges).toBe(true);
+    expect(fileDiff.diff).toContain('--- a/index.html');
+    expect(fileDiff.diff).toContain('+<h1>Changed for git_diff</h1>');
+
+    // 3. Query git_diff for whole workspace
+    const allDiff: any = await service.executeTool('git_diff', {});
+    expect(allDiff.totalModifiedFiles).toBeGreaterThanOrEqual(1);
+    expect(allDiff.diff).toContain('--- a/index.html');
+
+    // 4. Test git_branch 'list'
+    const listBranch: any = await service.executeTool('git_branch', { action: 'list' });
+    expect(listBranch.currentBranch).toBe('main');
+    expect(listBranch.branches).toContain('main');
+
+    // 5. Test git_branch 'create'
+    const createBranch: any = await service.executeTool('git_branch', {
+      action: 'create',
+      name: 'feat-webmcp-agent',
+    });
+    expect(createBranch.success).toBe(true);
+    expect(createBranch.createdBranch).toBe('feat-webmcp-agent');
+
+    // 6. Test git_branch 'switch'
+    const switchBranch: any = await service.executeTool('git_branch', {
+      action: 'switch',
+      name: 'feat-webmcp-agent',
+    });
+    expect(switchBranch.success).toBe(true);
+    expect(switchBranch.currentBranch).toBe('feat-webmcp-agent');
   });
 });

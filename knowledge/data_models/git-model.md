@@ -32,7 +32,17 @@ Representa el resumen del area de trabajo:
 - `unstaged`: Lista de `GitFileChange` pendientes de preparacion.
 - `totalChanges`: Cantidad total de archivos con modificaciones.
 
-## 4. Enlaces Relacionados
+## 4. Interfaz GitFileDiffResult
+Representa el calculo de diferencias de un archivo frente a HEAD:
+- `path`: Ruta del archivo en el VFS.
+- `status`: Estado del cambio (`'M'`, `'A'` o `'D'`).
+- `original`: Contenido textual en HEAD.
+- `modified`: Contenido textual actual en el espacio de trabajo.
+- `diffText`: Parche unificado de diferencias tipo Git (`--- a/... +++ b/...`).
+- `added`: Cantidad de lineas agregadas.
+- `removed`: Cantidad de lineas eliminadas.
+
+## 5. Enlaces Relacionados
 - [Contrato Git](../contracts/git-contract.md)
 - [Modelo de Nodo VFS](./vfs-node.md)
 - [Indice de Conocimiento](../index.md)
