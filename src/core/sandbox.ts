@@ -35,11 +35,9 @@ export class SandboxManager {
   }
 
   public generatePreviewHtml(): string {
-    // Find entry html file
     let htmlContent = vfs.readFile('/index.html') || vfs.readFile('/public/index.html');
 
     if (!htmlContent) {
-      // Find any html file
       const allFiles = vfs.listAllFiles();
       const anyHtml = allFiles.find((f) => f.path.endsWith('.html'));
       if (anyHtml) {
@@ -65,14 +63,31 @@ export class SandboxManager {
       }
     }
 
-    // Injected bridge script to intercept console logs and errors
+    // Injected bridge script with visual error banner and console bridge
     const bridgeScript = `
+<div id="__webmcp_error_banner__" style="display:none; position:fixed; top:0; left:0; right:0; background:#f14c4c; color:#fff; padding:10px 14px; font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:12px; z-index:999999; box-shadow:0 3px 10px rgba(0,0,0,0.4); border-bottom:2px solid #b71c1c;">
+  <div style="display:flex; justify-content:space-between; align-items:center;">
+    <span><strong>⚠️ Error en Vista Previa:</strong> <span id="__webmcp_error_text__"></span></span>
+    <button onclick="document.getElementById('__webmcp_error_banner__').style.display='none'" style="background:none; border:none; color:#fff; font-size:16px; cursor:pointer; padding:0 4px;">&times;</button>
+  </div>
+</div>
 <script>
   (function() {
     const _origLog = console.log;
     const _origWarn = console.warn;
     const _origError = console.error;
     const _origInfo = console.info;
+
+    function showBanner(msg) {
+      try {
+        const banner = document.getElementById('__webmcp_error_banner__');
+        const text = document.getElementById('__webmcp_error_text__');
+        if (banner && text) {
+          text.textContent = msg;
+          banner.style.display = 'block';
+        }
+      } catch (e) {}
+    }
 
     function sendLog(type, args) {
       try {
@@ -96,16 +111,19 @@ export class SandboxManager {
     console.info = function(...args) { _origInfo.apply(console, args); sendLog('info', args); };
 
     window.addEventListener('error', function(err) {
-      sendLog('error', [err.message + ' at ' + (err.filename || '') + ':' + (err.lineno || '')]);
+      const msg = (err.message || 'Error desconocido') + (err.lineno ? ' (línea ' + err.lineno + ')' : '');
+      showBanner(msg);
+      sendLog('error', [msg]);
     });
 
     window.addEventListener('unhandledrejection', function(err) {
-      sendLog('error', ['Unhandled Promise Rejection: ' + String(err.reason)]);
+      const msg = 'Promesa rechazada: ' + (err.reason ? (err.reason.message || String(err.reason)) : 'desconocida');
+      showBanner(msg);
+      sendLog('error', [msg]);
     });
   })();
 </script>`;
 
-    // Inline CSS and JS if linked with relative paths
     let processedHtml = htmlContent;
 
     // Inline <link rel="stylesheet" href="...">
@@ -148,7 +166,6 @@ export class SandboxManager {
       return match;
     });
 
-    // Inject bridge script at beginning of <head> or <html>
     if (processedHtml.includes('<head>')) {
       processedHtml = processedHtml.replace('<head>', '<head>' + bridgeScript);
     } else if (processedHtml.includes('<html>')) {
@@ -166,12 +183,111 @@ export class SandboxManager {
     this.iframe.srcdoc = html;
   }
 
-  public async executeJs(code: string): Promise<ExecutionResult> {
+  public async executeJs(code: string, timeoutMs: number = 3000): Promise<ExecutionResult> {
     const logs: string[] = [];
     const startTime = performance.now();
 
+    // In browser with Web Worker support: use Worker with termination watchdog
+    if (typeof window !== 'undefined' && typeof Worker !== 'undefined' && typeof Blob !== 'undefined' && typeof URL !== 'undefined') {
+      return new Promise<ExecutionResult>((resolve) => {
+        let finished = false;
+        let worker: Worker | null = null;
+
+        const timer = setTimeout(() => {
+          if (!finished) {
+            finished = true;
+            if (worker) {
+              worker.terminate();
+            }
+            const durationMs = Math.round(performance.now() - startTime);
+            resolve({
+              success: false,
+              error: `Tiempo de ejecución excedido (Watchdog: bucle infinito o tarea bloqueante detectada tras ${timeoutMs}ms)`,
+              logs,
+              durationMs,
+            });
+          }
+        }, timeoutMs);
+
+        try {
+          const workerSource = `
+            self.onmessage = async function(e) {
+              var code = e.data.code;
+              var customLogs = [];
+              var customConsole = {
+                log: function() { var args = Array.prototype.slice.call(arguments); customLogs.push(args.join(' ')); },
+                warn: function() { var args = Array.prototype.slice.call(arguments); customLogs.push('[WARN] ' + args.join(' ')); },
+                error: function() { var args = Array.prototype.slice.call(arguments); customLogs.push('[ERROR] ' + args.join(' ')); },
+                info: function() { var args = Array.prototype.slice.call(arguments); customLogs.push('[INFO] ' + args.join(' ')); }
+              };
+              try {
+                var runner = new Function('console', 'return (async function() { ' + code + ' })();');
+                var res = await runner(customConsole);
+                self.postMessage({ success: true, result: res, logs: customLogs });
+              } catch (err) {
+                self.postMessage({ success: false, error: err instanceof Error ? err.message : String(err), logs: customLogs });
+              }
+            };
+          `;
+          const blob = new Blob([workerSource], { type: 'application/javascript' });
+          const workerUrl = URL.createObjectURL(blob);
+          worker = new Worker(workerUrl);
+
+          worker.onmessage = (event: MessageEvent) => {
+            if (!finished) {
+              finished = true;
+              clearTimeout(timer);
+              URL.revokeObjectURL(workerUrl);
+              worker?.terminate();
+
+              const durationMs = Math.round(performance.now() - startTime);
+              resolve({
+                success: event.data.success,
+                result: event.data.result,
+                logs: event.data.logs || [],
+                error: event.data.error,
+                durationMs,
+              });
+            }
+          };
+
+          worker.onerror = (err: ErrorEvent) => {
+            if (!finished) {
+              finished = true;
+              clearTimeout(timer);
+              URL.revokeObjectURL(workerUrl);
+              worker?.terminate();
+
+              const durationMs = Math.round(performance.now() - startTime);
+              resolve({
+                success: false,
+                error: err.message || 'Error en Web Worker',
+                logs,
+                durationMs,
+              });
+            }
+          };
+
+          worker.postMessage({ code });
+        } catch {
+          // Fallback if Blob/Worker fails to construct
+          clearTimeout(timer);
+          this.executeJsInProcess(code, logs, startTime, timeoutMs).then(resolve);
+        }
+      });
+    }
+
+    // Direct in-process execution with Promise.race for Node / test environments
+    return this.executeJsInProcess(code, logs, startTime, timeoutMs);
+  }
+
+  private async executeJsInProcess(
+    code: string,
+    logs: string[],
+    startTime: number,
+    timeoutMs: number
+  ): Promise<ExecutionResult> {
     try {
-      // Create isolated sandboxed execution function with console mock
       const customConsole = {
         log: (...args: unknown[]) => logs.push(args.map(String).join(' ')),
         warn: (...args: unknown[]) => logs.push('[WARN] ' + args.map(String).join(' ')),
@@ -179,7 +295,6 @@ export class SandboxManager {
         info: (...args: unknown[]) => logs.push('[INFO] ' + args.map(String).join(' ')),
       };
 
-      // Wrap code in an async function to support top-level await
       const runner = new Function(
         'console',
         'vfs',
@@ -188,7 +303,11 @@ export class SandboxManager {
         })();`
       );
 
-      const result = await runner(customConsole, vfs);
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error(`Tiempo de ejecución excedido tras ${timeoutMs}ms`)), timeoutMs)
+      );
+
+      const result = await Promise.race([runner(customConsole, vfs), timeoutPromise]);
       const durationMs = Math.round(performance.now() - startTime);
 
       return {

@@ -33,6 +33,25 @@ describe('VirtualFileSystem (VFS)', () => {
     expect(content).toBe('console.log("hello");');
   });
 
+  it('rejects empty, whitespace-only or forbidden path names (TC-VFS-02 & TC-VFS-04)', () => {
+    expect(() => fs.createFile('', 'content')).toThrow();
+    expect(() => fs.createFile('   ', 'content')).toThrow();
+    expect(() => fs.createFile('/test<script>.js', 'content')).toThrow();
+    expect(() => fs.createFile('/bad:name.js', 'content')).toThrow();
+    expect(() => fs.createFile('/../../outside.js', 'content')).toThrow();
+  });
+
+  it('rejects duplicate file collisions unless overwrite is explicit (TC-VFS-03)', () => {
+    fs.createFile('/app.js', 'Original');
+    expect(() => fs.createFile('/app.js', 'Duplicate')).toThrow();
+    expect(fs.readFile('/app.js')).toBe('Original');
+
+    // Overwrite works when explicitly enabled
+    const overwritten = fs.createFile('/app.js', 'Overwritten', true);
+    expect(overwritten.content).toBe('Overwritten');
+    expect(fs.readFile('/app.js')).toBe('Overwritten');
+  });
+
   it('updates existing file content with writeFile', () => {
     fs.createFile('/notes.txt', 'Version 1');
     const updated = fs.writeFile('/notes.txt', 'Version 2');
@@ -53,7 +72,7 @@ describe('VirtualFileSystem (VFS)', () => {
     expect(rootNodes[2].name).toBe('fileB.txt');
   });
 
-  it('deletes files and recursively deletes directories', () => {
+  it('deletes files and recursively deletes directories (TC-VFS-05)', () => {
     fs.createFile('/src/a.js', 'a');
     fs.createFile('/src/sub/b.js', 'b');
 
@@ -64,6 +83,9 @@ describe('VirtualFileSystem (VFS)', () => {
     expect(fs.exists('/src/sub')).toBe(false);
     expect(fs.exists('/src/sub/b.js')).toBe(false);
     expect(fs.exists('/src/a.js')).toBe(true);
+
+    // Root directory cannot be deleted
+    expect(() => fs.deleteNode('/')).toThrow();
   });
 
   it('renames a file and moves it in VFS', () => {

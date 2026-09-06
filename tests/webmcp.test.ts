@@ -7,8 +7,8 @@ describe('WebMcpService & fastwebmcp tools', () => {
 
   beforeEach(() => {
     // Clear and prepare VFS
-    vfs.createFile('/index.html', '<h1>Hello WebMCP</h1>');
-    vfs.createFile('/src/main.js', 'console.log("running");');
+    vfs.createFile('/index.html', '<h1>Hello WebMCP</h1>', true);
+    vfs.createFile('/src/main.js', 'console.log("running");', true);
     service = new WebMcpService();
   });
 
@@ -60,11 +60,11 @@ describe('WebMcpService & fastwebmcp tools', () => {
     expect(searchResult.matches[0].file).toBe('/src/main.js');
   });
 
-  it('validates tool arguments with Zod schema', async () => {
+  it('formats schema validation errors according to MCP protocol -32602 (TC-MCP-02)', async () => {
     // Missing required parameter 'path'
     await expect(
       service.executeTool('ide_read_file', {} as any)
-    ).rejects.toThrow();
+    ).rejects.toThrow(/\[MCP -32602 INVALID_PARAMS\]/);
   });
 
   it('records execution logs for audit', async () => {

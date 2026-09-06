@@ -121,11 +121,17 @@ export class WebMcpService {
       eventBus.emit('webmcp:log_update', logEntry);
       return result;
     } catch (err: unknown) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
+      let errorMsg: string;
+      if (err instanceof z.ZodError) {
+        const details = err.issues.map((i) => `[${i.path.join('.') || 'param'}]: ${i.message}`).join('; ');
+        errorMsg = `[MCP -32602 INVALID_PARAMS] Parámetros inválidos para "${toolName}": ${details}`;
+      } else {
+        errorMsg = err instanceof Error ? err.message : String(err);
+      }
       logEntry.status = 'error';
       logEntry.error = errorMsg;
       eventBus.emit('webmcp:log_update', logEntry);
-      throw err;
+      throw new Error(errorMsg);
     }
   }
 

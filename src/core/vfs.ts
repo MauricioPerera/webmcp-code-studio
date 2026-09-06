@@ -23,18 +23,54 @@ export class VirtualFileSystem {
     }
   }
 
+  public validatePath(rawPath: string): string {
+    if (!rawPath || typeof rawPath !== 'string') {
+      throw new Error('La ruta no puede estar vacía.');
+    }
+    const trimmed = rawPath.trim();
+    if (!trimmed) {
+      throw new Error('El nombre o ruta de archivo no puede contener solo espacios en blanco.');
+    }
+
+    // Prohibit dangerous filesystem characters
+    const forbiddenChars = /[<>:"|?*\x00-\x1F]/;
+    if (forbiddenChars.test(trimmed)) {
+      throw new Error('La ruta contiene caracteres no permitidos (< > : " | ? *).');
+    }
+
+    // Split and resolve path segments (defends against Path Traversal)
+    const normalizedSeparators = trimmed.replace(/\\/g, '/');
+    const segments = normalizedSeparators.split('/');
+    const resolved: string[] = [];
+
+    for (const seg of segments) {
+      const s = seg.trim();
+      if (!s || s === '.') continue;
+      if (s === '..') {
+        if (resolved.length === 0) {
+          throw new Error('Intento de Path Traversal fuera de la raíz virtual no permitido.');
+        }
+        resolved.pop();
+      } else {
+        resolved.push(s);
+      }
+    }
+
+    if (resolved.length === 0) {
+      return '/';
+    }
+    return '/' + resolved.join('/');
+  }
+
   public normalizePath(rawPath: string): string {
-    let p = rawPath.replace(/\\/g, '/').trim();
-    if (!p.startsWith('/')) {
-      p = '/' + p;
+    try {
+      return this.validatePath(rawPath);
+    } catch {
+      let p = rawPath.replace(/\\/g, '/').trim();
+      if (!p.startsWith('/')) p = '/' + p;
+      if (p.length > 1 && p.endsWith('/')) p = p.slice(0, -1);
+      return p.replace(/\/+/g, '/');
     }
-    // Remove trailing slash unless root
-    if (p.length > 1 && p.endsWith('/')) {
-      p = p.slice(0, -1);
-    }
-    // Collapse duplicate slashes
-    p = p.replace(/\/+/g, '/');
-    return p;
   }
 
   public getParentPath(path: string): string {
@@ -52,23 +88,31 @@ export class VirtualFileSystem {
   }
 
   public exists(rawPath: string): boolean {
-    const path = this.normalizePath(rawPath);
-    return this.nodes.has(path);
+    try {
+      const path = this.validatePath(rawPath);
+      return this.nodes.has(path);
+    } catch {
+      return false;
+    }
   }
 
   public getNode(rawPath: string): VFSNode | null {
-    const path = this.normalizePath(rawPath);
-    return this.nodes.get(path) || null;
+    try {
+      const path = this.validatePath(rawPath);
+      return this.nodes.get(path) || null;
+    } catch {
+      return null;
+    }
   }
 
   public createDirectory(rawPath: string): VFSDirectory {
-    const path = this.normalizePath(rawPath);
+    const path = this.validatePath(rawPath);
     if (path === '/') return this.nodes.get('/') as VFSDirectory;
 
     const existing = this.nodes.get(path);
     if (existing) {
       if (existing.type === 'directory') return existing;
-      throw new Error(`Path "${path}" already exists as a file.`);
+      throw new Error(`La ruta "${path}" ya existe como archivo.`);
     }
 
     // Ensure parents exist recursively
@@ -89,21 +133,30 @@ export class VirtualFileSystem {
       parent.updatedAt = Date.now();
     }
 
+    this.saveToStorage();
     eventBus.emit('vfs:change', { type: 'create_dir', path });
     return dir;
   }
 
-  public createFile(rawPath: string, content: string = ''): VFSFile {
-    const path = this.normalizePath(rawPath);
+  public createFile(rawPath: string, content: string = '', overwrite: boolean = false): VFSFile {
+    const path = this.validatePath(rawPath);
+    if (path === '/') {
+      throw new Error('No se puede crear un archivo en la raíz "/". Especifique un nombre de archivo.');
+    }
+
     const existing = this.nodes.get(path);
     if (existing) {
-      if (existing.type === 'file') {
-        existing.content = content;
-        existing.updatedAt = Date.now();
-        eventBus.emit('vfs:change', { type: 'update_file', path });
-        return existing;
+      if (existing.type === 'directory') {
+        throw new Error(`La ruta "${path}" ya existe como un directorio.`);
       }
-      throw new Error(`Path "${path}" already exists as a directory.`);
+      if (!overwrite) {
+        throw new Error(`El archivo "${path}" ya existe. Especifique otro nombre o use sobrescritura.`);
+      }
+      existing.content = content;
+      existing.updatedAt = Date.now();
+      this.saveToStorage();
+      eventBus.emit('vfs:change', { type: 'update_file', path });
+      return existing;
     }
 
     const parentPath = this.getParentPath(path);
@@ -123,35 +176,47 @@ export class VirtualFileSystem {
       parent.updatedAt = Date.now();
     }
 
+    this.saveToStorage();
     eventBus.emit('vfs:change', { type: 'create_file', path });
     return file;
   }
 
   public readFile(rawPath: string): string | null {
-    const path = this.normalizePath(rawPath);
-    const node = this.nodes.get(path);
-    if (!node || node.type !== 'file') return null;
-    return node.content;
+    try {
+      const path = this.validatePath(rawPath);
+      const node = this.nodes.get(path);
+      if (!node || node.type !== 'file') return null;
+      return node.content;
+    } catch {
+      return null;
+    }
   }
 
   public writeFile(rawPath: string, content: string): boolean {
-    const path = this.normalizePath(rawPath);
-    const node = this.nodes.get(path);
-    if (!node) {
-      this.createFile(path, content);
-      return true;
-    }
-    if (node.type !== 'file') return false;
+    try {
+      const path = this.validatePath(rawPath);
+      const node = this.nodes.get(path);
+      if (!node) {
+        this.createFile(path, content, true);
+        return true;
+      }
+      if (node.type !== 'file') return false;
 
-    node.content = content;
-    node.updatedAt = Date.now();
-    eventBus.emit('vfs:change', { type: 'update_file', path });
-    return true;
+      node.content = content;
+      node.updatedAt = Date.now();
+      this.saveToStorage();
+      eventBus.emit('vfs:change', { type: 'update_file', path });
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   public deleteNode(rawPath: string): boolean {
     const path = this.normalizePath(rawPath);
-    if (path === '/') return false; // Root cannot be deleted
+    if (path === '/') {
+      throw new Error('No se permite eliminar el directorio raíz "/".');
+    }
 
     const node = this.nodes.get(path);
     if (!node) return false;
@@ -174,13 +239,14 @@ export class VirtualFileSystem {
       parent.updatedAt = Date.now();
     }
 
+    this.saveToStorage();
     eventBus.emit('vfs:change', { type: 'delete', path });
     return true;
   }
 
   public renameNode(oldRawPath: string, newRawPath: string): boolean {
-    const oldPath = this.normalizePath(oldRawPath);
-    const newPath = this.normalizePath(newRawPath);
+    const oldPath = this.validatePath(oldRawPath);
+    const newPath = this.validatePath(newRawPath);
 
     if (oldPath === '/' || newPath === '/' || oldPath === newPath) return false;
     const node = this.nodes.get(oldPath);
@@ -189,7 +255,7 @@ export class VirtualFileSystem {
     if (node.type === 'file') {
       const content = node.content;
       this.deleteNode(oldPath);
-      this.createFile(newPath, content);
+      this.createFile(newPath, content, true);
       eventBus.emit('vfs:rename', { oldPath, newPath });
       return true;
     } else {
@@ -217,9 +283,10 @@ export class VirtualFileSystem {
       }
       for (const f of descendantFiles) {
         const subPath = newPath + f.path.slice(oldPath.length);
-        this.createFile(subPath, f.content);
+        this.createFile(subPath, f.content, true);
       }
 
+      this.saveToStorage();
       eventBus.emit('vfs:rename', { oldPath, newPath });
       return true;
     }
@@ -235,7 +302,6 @@ export class VirtualFileSystem {
       const child = this.nodes.get(childPath);
       if (child) result.push(child);
     }
-    // Sort directories first, then alphabetically
     result.sort((a, b) => {
       if (a.type !== b.type) return a.type === 'directory' ? -1 : 1;
       return a.name.localeCompare(b.name);
@@ -287,7 +353,7 @@ export class VirtualFileSystem {
     this.nodes.clear();
     this.ensureRoot();
     for (const [filePath, content] of Object.entries(files)) {
-      this.createFile(filePath, content);
+      this.createFile(filePath, content, true);
     }
     this.saveToStorage();
     eventBus.emit('vfs:reloaded');
@@ -325,7 +391,7 @@ export class VirtualFileSystem {
       // Second pass: create files
       for (const node of parsed) {
         if (node.type === 'file') {
-          this.createFile(node.path, node.content);
+          this.createFile(node.path, node.content, true);
         }
       }
       eventBus.emit('vfs:reloaded');
@@ -339,7 +405,6 @@ export class VirtualFileSystem {
   public async exportToZip(): Promise<Blob> {
     const zip = new JSZip();
     for (const file of this.listAllFiles()) {
-      // Remove leading slash for zip paths
       const zipPath = file.path.startsWith('/') ? file.path.slice(1) : file.path;
       zip.file(zipPath, file.content);
     }
@@ -352,7 +417,7 @@ export class VirtualFileSystem {
     for (const [relativePath, zipEntry] of Object.entries(zip.files)) {
       if (!zipEntry.dir) {
         const text = await zipEntry.async('string');
-        this.createFile('/' + relativePath, text);
+        this.createFile('/' + relativePath, text, true);
         count++;
       }
     }

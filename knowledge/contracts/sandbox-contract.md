@@ -11,7 +11,7 @@ test_command: 'npm test'
 budget:
   cyclomatic_max: 15
 tests: 'tests/sandbox.test.ts'
-tests_sha256: 'c92184806c55a8f2a85c165b39ebf628ef8387170cfcb40f58332d1c3b19073a'
+tests_sha256: '9a95dc79c4dbf69d43d28defe8156b9dea45f0cf35f5c730fad0157a4225e92c'
 touch_only: ['src/core/sandbox.ts']
 deps_allowed: []
 forbids: ['document.write']

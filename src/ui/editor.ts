@@ -86,8 +86,17 @@ export class EditorManager {
 
     // When file deleted in VFS
     eventBus.on<{ type: string; path: string }>('vfs:change', (data) => {
-      if (data.type === 'delete' && this.openTabs.has(data.path)) {
-        this.closeTab(data.path);
+      if (data.type === 'delete') {
+        if (this.openTabs.has(data.path)) {
+          this.closeTab(data.path);
+        } else {
+          // If directory was deleted, close all child tabs
+          for (const tabPath of Array.from(this.openTabs.keys())) {
+            if (tabPath.startsWith(data.path + '/')) {
+              this.closeTab(tabPath);
+            }
+          }
+        }
       }
       if (data.type === 'update_file' && this.models.has(data.path)) {
         const fileContent = vfs.readFile(data.path);
@@ -233,6 +242,13 @@ export class EditorManager {
   public getActiveFileContent(): string | null {
     if (!this.activeTabPath || !this.models.has(this.activeTabPath)) return null;
     return this.models.get(this.activeTabPath)!.getValue();
+  }
+
+  public hasUnsavedChanges(): boolean {
+    for (const tab of this.openTabs.values()) {
+      if (tab.isDirty) return true;
+    }
+    return false;
   }
 
   private renderTabs(): void {

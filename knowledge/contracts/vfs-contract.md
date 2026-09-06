@@ -11,7 +11,7 @@ test_command: 'npm test'
 budget:
   cyclomatic_max: 15
 tests: 'tests/vfs.test.ts'
-tests_sha256: '80ace291df7fa79c612bb2fd0a498240d7d70ea5352bc1a7f543076f9d212d3a'
+tests_sha256: 'ccc97fdc89325f5409b20474018d95bfcb9f7a647410b4f37e8791dfc3c519b7'
 touch_only: ['src/core/vfs.ts']
 deps_allowed: ['jszip']
 forbids: ['fs', 'child_process']

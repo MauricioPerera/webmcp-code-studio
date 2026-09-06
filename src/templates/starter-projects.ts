@@ -161,6 +161,9 @@ function addLog(msg, type = 'tool') {
   const time = new Date().toLocaleTimeString();
   item.textContent = '[' + time + '] ' + msg;
   logList.appendChild(item);
+  if (logList.children.length > 50) {
+    logList.removeChild(logList.children[0]);
+  }
   logList.scrollTop = logList.scrollHeight;
 }
 
@@ -175,9 +178,13 @@ document.getElementById('btn-inc').addEventListener('click', () => {
 });
 
 document.getElementById('btn-dec').addEventListener('click', () => {
-  count--;
-  updateDisplay();
-  addLog('Decrement manual: ' + count, 'info');
+  if (count > 0) {
+    count--;
+    updateDisplay();
+    addLog('Decrement manual: ' + count, 'info');
+  } else {
+    addLog('El contador no puede ser menor a 0', 'info');
+  }
 });
 
 document.getElementById('btn-reset').addEventListener('click', () => {

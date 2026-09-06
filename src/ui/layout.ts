@@ -4,6 +4,7 @@ import { vfs } from '../core/vfs';
 export class LayoutManager {
   private activeActivityId: string = 'explorer';
   private isBottomPanelOpen: boolean = true;
+  private openMenuEl: HTMLElement | null = null;
 
   public init(): void {
     this.bindActivityBar();
@@ -11,6 +12,8 @@ export class LayoutManager {
     this.bindSplitters();
     this.bindThemeToggle();
     this.bindQuickOpen();
+    this.bindWindowMenus();
+    this.bindUnloadWarning();
     this.renderKddPanel();
     this.renderSettingsPanel();
   }
@@ -22,12 +25,10 @@ export class LayoutManager {
         const panelId = btn.getAttribute('data-panel');
         if (!panelId) return;
 
-        // Toggle active button
         buttons.forEach((b) => b.classList.remove('active'));
         btn.classList.add('active');
         this.activeActivityId = panelId;
 
-        // Toggle active sidebar panel
         document.querySelectorAll('.sidebar-panel').forEach((p) => p.classList.remove('active'));
         const targetPanel = document.getElementById(`panel-${panelId}`);
         if (targetPanel) {
@@ -38,7 +39,6 @@ export class LayoutManager {
   }
 
   private bindBottomPanel(): void {
-    // Tabs switching
     const tabs = document.querySelectorAll<HTMLButtonElement>('.panel-tab');
     tabs.forEach((tab) => {
       tab.addEventListener('click', () => {
@@ -54,17 +54,14 @@ export class LayoutManager {
       });
     });
 
-    // Close bottom panel
     document.getElementById('btn-close-bottom-panel')?.addEventListener('click', () => {
       this.toggleBottomPanel(false);
     });
 
-    // Toggle bottom panel button
     document.getElementById('btn-toggle-panel')?.addEventListener('click', () => {
       this.toggleBottomPanel(!this.isBottomPanelOpen);
     });
 
-    // Keyboard shortcut Ctrl+`
     window.addEventListener('keydown', (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === '`') {
         e.preventDefault();
@@ -89,7 +86,6 @@ export class LayoutManager {
   }
 
   private bindSplitters(): void {
-    // Vertical splitter (Sidebar width)
     const vResizer = document.getElementById('sidebar-resizer');
     const sidebar = document.getElementById('sidebar');
 
@@ -105,7 +101,7 @@ export class LayoutManager {
 
       window.addEventListener('mousemove', (e) => {
         if (!isDragging) return;
-        const newWidth = Math.max(160, Math.min(600, e.clientX - 48)); // 48px is activity bar width
+        const newWidth = Math.max(160, Math.min(600, e.clientX - 48));
         sidebar.style.width = `${newWidth}px`;
       });
 
@@ -118,7 +114,6 @@ export class LayoutManager {
       });
     }
 
-    // Horizontal splitter (Bottom panel height)
     const hResizer = document.getElementById('panel-resizer');
     const bottomPanel = document.getElementById('bottom-panel');
 
@@ -134,7 +129,7 @@ export class LayoutManager {
 
       window.addEventListener('mousemove', (e) => {
         if (!isDragging) return;
-        const newHeight = Math.max(120, Math.min(window.innerHeight - 150, window.innerHeight - e.clientY - 24)); // 24px status bar
+        const newHeight = Math.max(120, Math.min(window.innerHeight - 150, window.innerHeight - e.clientY - 24));
         bottomPanel.style.height = `${newHeight}px`;
       });
 
@@ -179,6 +174,129 @@ export class LayoutManager {
     } else {
       alert(`No se encontró ningún archivo que coincida con "${query}".`);
     }
+  }
+
+  private bindWindowMenus(): void {
+    const menuDefs: Record<
+      string,
+      Array<{ label: string; shortcut?: string; divider?: boolean; action: () => void }>
+    > = {
+      'menu-file': [
+        { label: 'Nuevo Archivo', shortcut: 'Alt+N', action: () => document.getElementById('btn-new-file')?.click() },
+        { label: 'Nueva Carpeta', action: () => document.getElementById('btn-new-folder')?.click() },
+        { divider: true, label: '', action: () => {} },
+        { label: 'Guardar Archivo', shortcut: 'Ctrl+S', action: () => editorManager.saveActiveFile() },
+        { label: 'Descargar Proyecto (.ZIP)', action: () => document.getElementById('btn-export-zip')?.click() },
+        { divider: true, label: '', action: () => {} },
+        {
+          label: 'Restablecer Espacio de Trabajo',
+          action: () => {
+            if (confirm('¿Restablecer el VFS y recargar la plantilla por defecto?')) {
+              localStorage.removeItem('webmcp_studio_vfs_v1');
+              window.location.reload();
+            }
+          },
+        },
+      ],
+      'menu-edit': [
+        { label: 'Deshacer', shortcut: 'Ctrl+Z', action: () => document.execCommand('undo') },
+        { label: 'Rehacer', shortcut: 'Ctrl+Y', action: () => document.execCommand('redo') },
+        { divider: true, label: '', action: () => {} },
+        { label: 'Buscar en Archivos', shortcut: 'Ctrl+Shift+F', action: () => document.getElementById('act-search')?.click() },
+      ],
+      'menu-view': [
+        { label: 'Explorador', shortcut: 'Ctrl+Shift+E', action: () => document.getElementById('act-explorer')?.click() },
+        { label: 'Buscar', shortcut: 'Ctrl+Shift+F', action: () => document.getElementById('act-search')?.click() },
+        { label: 'Inspector WebMCP', action: () => document.getElementById('act-webmcp')?.click() },
+        { label: 'Metodología KDD', action: () => document.getElementById('act-kdd')?.click() },
+        { divider: true, label: '', action: () => {} },
+        { label: 'Alternar Panel Inferior', shortcut: 'Ctrl+`', action: () => this.toggleBottomPanel() },
+        { label: 'Alternar Tema (Dark/Light)', action: () => editorManager.toggleTheme() },
+      ],
+      'menu-run': [
+        { label: 'Ejecutar Vista Previa', shortcut: 'F5', action: () => document.getElementById('btn-run-preview')?.click() },
+        { label: 'Recargar Sandbox', action: () => document.getElementById('btn-refresh-preview')?.click() },
+        { label: 'Limpiar Consola', action: () => document.getElementById('btn-clear-terminal')?.click() },
+      ],
+      'menu-help': [
+        { label: 'Documentación KDD (OKF)', action: () => editorManager.openFile('/knowledge/index.md') },
+        { label: 'Especificación para Agentes (llms.txt)', action: () => editorManager.openFile('/llms.txt') },
+        { label: 'WebMCP Oficial (webmcp.com)', action: () => window.open('https://webmcp.com/', '_blank') },
+        { label: 'Repositorio GitHub', action: () => window.open('https://github.com/MauricioPerera/webmcp-code-studio', '_blank') },
+      ],
+    };
+
+    const closeOpenMenu = () => {
+      if (this.openMenuEl) {
+        this.openMenuEl.remove();
+        this.openMenuEl = null;
+      }
+    };
+
+    window.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.window-menu') && !target.closest('.vscode-dropdown-menu')) {
+        closeOpenMenu();
+      }
+    });
+
+    for (const [btnId, items] of Object.entries(menuDefs)) {
+      const btn = document.getElementById(btnId);
+      if (!btn) continue;
+
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+
+        if (this.openMenuEl && this.openMenuEl.getAttribute('data-for') === btnId) {
+          closeOpenMenu();
+          return;
+        }
+
+        closeOpenMenu();
+
+        const menuEl = document.createElement('div');
+        menuEl.className = 'vscode-dropdown-menu';
+        menuEl.setAttribute('data-for', btnId);
+
+        const rect = btn.getBoundingClientRect();
+        menuEl.style.left = `${rect.left}px`;
+        menuEl.style.top = `${rect.bottom + 4}px`;
+
+        for (const item of items) {
+          if (item.divider) {
+            const div = document.createElement('div');
+            div.className = 'dropdown-divider';
+            menuEl.appendChild(div);
+          } else {
+            const itemBtn = document.createElement('button');
+            itemBtn.className = 'dropdown-item';
+            itemBtn.innerHTML = `
+              <span>${item.label}</span>
+              ${item.shortcut ? `<span class="dropdown-shortcut">${item.shortcut}</span>` : ''}
+            `;
+            itemBtn.addEventListener('click', (ev) => {
+              ev.stopPropagation();
+              closeOpenMenu();
+              item.action();
+            });
+            menuEl.appendChild(itemBtn);
+          }
+        }
+
+        document.body.appendChild(menuEl);
+        this.openMenuEl = menuEl;
+      });
+    }
+  }
+
+  private bindUnloadWarning(): void {
+    window.addEventListener('beforeunload', (e) => {
+      if (editorManager.hasUnsavedChanges()) {
+        e.preventDefault();
+        e.returnValue = 'Tienes cambios no guardados en el editor. ¿Deseas salir de todas formas?';
+        return e.returnValue;
+      }
+    });
   }
 
   private renderKddPanel(): void {
