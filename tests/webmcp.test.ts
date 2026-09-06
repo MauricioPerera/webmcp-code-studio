@@ -19,11 +19,11 @@ describe('WebMcpService & fastwebmcp tools', () => {
     service = new WebMcpService();
   });
 
-  it('registers all 16 core IDE & Git Remote tools', () => {
+  it('registers all 17 core IDE, Git Remote & Terminal tools', () => {
     const tools = service.getRegisteredTools();
     const toolNames = tools.map((t) => t.name);
 
-    expect(toolNames).toHaveLength(16);
+    expect(toolNames).toHaveLength(17);
     expect(toolNames).toContain('ide_get_active_file');
     expect(toolNames).toContain('ide_list_files');
     expect(toolNames).toContain('ide_read_file');
@@ -40,6 +40,7 @@ describe('WebMcpService & fastwebmcp tools', () => {
     expect(toolNames).toContain('git_remote_config');
     expect(toolNames).toContain('git_remote_push');
     expect(toolNames).toContain('git_remote_pull');
+    expect(toolNames).toContain('ide_terminal_exec');
   });
 
   it('executes ide_list_files tool successfully', async () => {
@@ -199,5 +200,18 @@ describe('WebMcpService & fastwebmcp tools', () => {
       action: 'get',
     });
     expect(checkRes.configured).toBe(false);
+  });
+
+  it('executes ide_terminal_exec via WebMCP', async () => {
+    const res: any = await service.executeTool('ide_terminal_exec', {
+      command: 'echo "hello from webmcp terminal tool" > /terminal-test.txt',
+    });
+    expect(res.exitCode).toBe(0);
+
+    const catRes: any = await service.executeTool('ide_terminal_exec', {
+      command: 'cat /terminal-test.txt | grep webmcp',
+    });
+    expect(catRes.exitCode).toBe(0);
+    expect(catRes.stdout).toContain('hello from webmcp terminal tool');
   });
 });

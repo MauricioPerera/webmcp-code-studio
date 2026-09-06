@@ -155,6 +155,19 @@ const tools = document.modelContext.getTools();
 - **Annotations:** `readOnlyHint: false`
 - **Output:** `{ success: boolean, filesUpdated: number, message: string }`
 
+### 17. `ide_terminal_exec`
+- **Description:** Execute Unix shell commands (POSIX file utilities and Git CLI) directly inside the browser against the VFS and Git VCS engine, with support for pipes (`|`) and file redirections (`>`, `>>`).
+- **Parameters:**
+  - `command` (string, required): Shell command line or pipeline (e.g. `"ls -la /src"`, `"git status"`, `"cat /data/orders.json | grep Processing > /data/active.json"`).
+  - `cwd` (string, optional): Initial working directory (defaults to current working directory).
+- **Annotations:** `readOnlyHint: false`
+- **Output:** `{ stdout: string, stderr: string, exitCode: number, cwd: string }`
+- **Supported Commands:**
+  - **POSIX:** `pwd`, `cd`, `ls [-l] [-a]`, `cat`, `echo`, `touch`, `mkdir [-p]`, `rm [-r] [-f]`, `cp`, `mv`, `grep [-i] [-n] [-v]`, `head [-n N]`, `tail [-n N]`, `wc`, `clear`, `help`.
+  - **Git CLI:** `git status`, `git add <file|.>`, `git commit -m "<msg>"`, `git branch [name]`, `git checkout <name>`, `git log [-n N]`, `git diff [path]`, `git push`, `git pull`.
+  - **JS Eval:** `node -e "<code>"` or `js <code>` evaluates in the Web Worker sandbox.
+- **Recommended Agent Use:** Run multi-file inspections, standard Unix pipelines, or Git workflows using natural shell command sequences.
+
 ---
 
 ## Agent Workflow Pattern

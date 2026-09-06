@@ -12,6 +12,7 @@ Bienvenido al índice central de la base de conocimiento de **WebMCP Code Studio
 - [Definición de Herramienta WebMCP](./data_models/tool-definition.md)
 - [Modelo de Datos Git VCS](./data_models/git-model.md)
 - [Modelo de Datos Sincronización Remota](./data_models/remote-model.md)
+- [Modelo de Datos Terminal Unix](./data_models/terminal-model.md)
 
 ## 3. Contratos de Tarea (CCDD Híbridos)
 - [Contrato del Virtual File System](./contracts/vfs-contract.md)
@@ -19,6 +20,7 @@ Bienvenido al índice central de la base de conocimiento de **WebMCP Code Studio
 - [Contrato de Sandbox y Live Preview](./contracts/sandbox-contract.md)
 - [Contrato de Control de Versiones Git](./contracts/git-contract.md)
 - [Contrato de Sincronización Remota Git](./contracts/remote-contract.md)
+- [Contrato de Terminal Unix y Shell VFS](./contracts/terminal-contract.md)
 
 ## 4. Guías y Metodología
 - [Guía y Niveles de Validación KDD](./validacion.md)

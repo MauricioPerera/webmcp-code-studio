@@ -3,6 +3,7 @@ import { registerTool, supportsWebMcp, createWebMcpMock } from 'fastwebmcp';
 import { vfs } from './vfs';
 import { gitVcs } from './git-vcs';
 import { remoteSync } from './remote-sync';
+import { terminalShell } from './terminal-shell';
 import { sandboxManager } from './sandbox';
 import { eventBus } from './event-bus';
 import { WebMcpToolMetadata, WebMcpExecutionLog } from './types';
@@ -608,6 +609,24 @@ export class WebMcpService {
       readOnlyHint: false,
       execute: async ({ branch }) => {
         return await remoteSync.pull({ branch });
+      },
+    });
+
+    // 17. ide_terminal_exec
+    this.registerCustomTool({
+      name: 'ide_terminal_exec',
+      description: 'Ejecuta comandos de consola Unix (POSIX y Git CLI) en el entorno del Virtual File System con soporte de tuberias (|) y redirecciones (>, >>).',
+      inputSchema: z.object({
+        command: z.string().describe('Comando o pipeline a ejecutar (ej: "ls -la /src", "git status", "cat data.json | grep id > output.txt")'),
+        cwd: z.string().optional().describe('Directorio de trabajo para la ejecucion (opcional, por defecto "/")'),
+      }),
+      parametersList: [
+        { name: 'command', type: 'string', description: 'Comando o pipeline a ejecutar.', required: true },
+        { name: 'cwd', type: 'string', description: 'Directorio de trabajo inicial.', required: false },
+      ],
+      readOnlyHint: false,
+      execute: async ({ command, cwd }) => {
+        return await terminalShell.execute(command, cwd);
       },
     });
   }
