@@ -6,9 +6,9 @@
   --bg-elevated: #1e293b;
   --border-color: #23314d;
   --border-glow: #38bdf8;
-  --text-main: #94a3b8;
+  --text-main: #cbd5e1;
   --text-bright: #f8fafc;
-  --text-muted: #64748b;
+  --text-muted: #94a3b8;
   --primary-blue: #0284c7;
   --primary-hover: #0369a1;
   --accent-cyan: #06b6d4;
@@ -162,13 +162,14 @@ a:hover {
 .nav-links {
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 18px;
 }
 
 .nav-links a {
   color: var(--text-main);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
+  white-space: nowrap;
 }
 
 .nav-links a:hover {

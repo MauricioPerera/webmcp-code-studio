@@ -185,7 +185,7 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
       howTo: 'Cómo Usar',
       useCases: 'Casos de Uso',
       faq: 'Preguntas',
-      openStudio: '🚀 Abrir Code Studio',
+      openStudio: 'Abrir Code Studio',
     },
     hero: {
       pill: '✨ La Nueva Era de Creación con Inteligencia Artificial',
@@ -359,7 +359,7 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
       howTo: 'How to Use',
       useCases: 'Use Cases',
       faq: 'FAQ',
-      openStudio: '🚀 Open Code Studio',
+      openStudio: 'Open Code Studio',
     },
     hero: {
       pill: '✨ The New Era of Creation with Artificial Intelligence',
@@ -533,7 +533,7 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
       howTo: 'Como Usar',
       useCases: 'Casos de Uso',
       faq: 'Perguntas',
-      openStudio: '🚀 Abrir Code Studio',
+      openStudio: 'Abrir Code Studio',
     },
     hero: {
       pill: '✨ A Nova Era da Criação com Inteligência Artificial',
