@@ -1,0 +1,77 @@
+import { describe, it, expect, beforeEach } from 'vitest';
+import { WebMcpService } from '../src/core/webmcp-service';
+import { vfs } from '../src/core/vfs';
+
+describe('WebMcpService & fastwebmcp tools', () => {
+  let service: WebMcpService;
+
+  beforeEach(() => {
+    // Clear and prepare VFS
+    vfs.createFile('/index.html', '<h1>Hello WebMCP</h1>');
+    vfs.createFile('/src/main.js', 'console.log("running");');
+    service = new WebMcpService();
+  });
+
+  it('registers all 8 core IDE tools', () => {
+    const tools = service.getRegisteredTools();
+    const toolNames = tools.map((t) => t.name);
+
+    expect(toolNames).toContain('ide_get_active_file');
+    expect(toolNames).toContain('ide_list_files');
+    expect(toolNames).toContain('ide_read_file');
+    expect(toolNames).toContain('ide_write_file');
+    expect(toolNames).toContain('ide_delete_file');
+    expect(toolNames).toContain('ide_execute_code');
+    expect(toolNames).toContain('ide_search_files');
+    expect(toolNames).toContain('ide_get_workspace_summary');
+  });
+
+  it('executes ide_list_files tool successfully', async () => {
+    const result: any = await service.executeTool('ide_list_files', {});
+    expect(result.totalFiles).toBeGreaterThanOrEqual(2);
+    expect(result.files.some((f: any) => f.path === '/index.html')).toBe(true);
+  });
+
+  it('executes ide_read_file and throws on non-existent file', async () => {
+    const readResult: any = await service.executeTool('ide_read_file', {
+      path: '/index.html',
+    });
+    expect(readResult.content).toBe('<h1>Hello WebMCP</h1>');
+
+    await expect(
+      service.executeTool('ide_read_file', { path: '/does-not-exist.txt' })
+    ).rejects.toThrow();
+  });
+
+  it('executes ide_write_file and writes content into VFS', async () => {
+    const writeResult: any = await service.executeTool('ide_write_file', {
+      path: '/created-by-tool.txt',
+      content: 'Tool content',
+    });
+    expect(writeResult.success).toBe(true);
+    expect(vfs.readFile('/created-by-tool.txt')).toBe('Tool content');
+  });
+
+  it('executes ide_search_files and returns matches', async () => {
+    const searchResult: any = await service.executeTool('ide_search_files', {
+      query: 'running',
+    });
+    expect(searchResult.totalMatches).toBe(1);
+    expect(searchResult.matches[0].file).toBe('/src/main.js');
+  });
+
+  it('validates tool arguments with Zod schema', async () => {
+    // Missing required parameter 'path'
+    await expect(
+      service.executeTool('ide_read_file', {} as any)
+    ).rejects.toThrow();
+  });
+
+  it('records execution logs for audit', async () => {
+    await service.executeTool('ide_list_files', {});
+    const logs = service.getExecutionLogs();
+    expect(logs.length).toBeGreaterThan(0);
+    expect(logs[0].toolName).toBe('ide_list_files');
+    expect(logs[0].status).toBe('success');
+  });
+});

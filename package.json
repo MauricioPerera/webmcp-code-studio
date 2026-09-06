@@ -1,0 +1,39 @@
+{
+  "name": "webmcp-code-studio",
+  "version": "1.0.0",
+  "description": "Visual Studio Code-style Web IDE built with KDD and fastwebmcp, ready for GitHub Pages.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "kdd:contracts": "python scripts/validate_contracts.py knowledge/contracts",
+    "kdd:okf": "python scripts/validate_okf.py knowledge",
+    "kdd:lint": "python scripts/lint_ascii.py scripts",
+    "kdd:validate": "npm run kdd:contracts && npm run kdd:okf && npm run kdd:lint && npm test"
+  },
+  "keywords": [
+    "webmcp",
+    "fastwebmcp",
+    "kdd",
+    "vscode",
+    "web-ide",
+    "monaco-editor"
+  ],
+  "author": "WebMCP Code Studio Team",
+  "license": "MIT",
+  "dependencies": {
+    "@monaco-editor/loader": "^1.7.0",
+    "fastwebmcp": "^0.4.2",
+    "jszip": "^3.10.1",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "typescript": "^5.7.3",
+    "vite": "^6.2.0",
+    "vitest": "^3.0.7"
+  }
+}
